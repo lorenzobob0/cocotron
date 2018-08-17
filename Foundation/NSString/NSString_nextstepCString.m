@@ -46,16 +46,17 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 NSString *NSNEXTSTEPCStringNewWithBytes(NSZone *zone,
  const char *bytes,NSUInteger length) {
-   NSString_nextstepCString *self=NSAllocateObject(objc_lookUpClass("NSString_nextstepCString"),length*sizeof(char),zone);
+   NSString_nextstepCString *string;
+   NSInteger                i;
 
-    if (self) {
-       self->_length=length;
-        NSInteger i;
-       for(i=0;i<length;i++)
-        self->_bytes[i]=bytes[i];
-       self->_bytes[i]='\0';
-    }
-   return self;
+   string=NSAllocateObject(objc_lookUpClass("NSString_nextstepCString"),length*sizeof(char),zone);
+
+   string->_length=length;
+   for(i=0;i<length;i++)
+    string->_bytes[i]=bytes[i];
+   string->_bytes[i]='\0';
+
+   return string;
 }
 
 NSString *NSNEXTSTEPCStringNewWithCharacters(NSZone *zone,
@@ -78,15 +79,16 @@ NSString *NSNEXTSTEPCStringNewWithCharacters(NSZone *zone,
 
 NSString *NSNEXTSTEPCStringNewWithCapacity(NSZone *zone,
   NSUInteger capacity,char **ptr) {
-   NSString_nextstepCString *self=NSAllocateObject(objc_lookUpClass("NSString_nextstepCString"),capacity*sizeof(char),zone);
+   NSString_nextstepCString *string;
 
-    if (self) {
-       self->_length=capacity;
-       *ptr=self->_bytes;
+   string=NSAllocateObject(objc_lookUpClass("NSString_nextstepCString"),capacity*sizeof(char),zone);
 
-       self->_bytes[capacity]='\0';
-    }
-   return self;
+   string->_length=capacity;
+   *ptr=string->_bytes;
+
+   string->_bytes[capacity]='\0';
+
+   return string;
 }
 
 @end

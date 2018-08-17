@@ -8,7 +8,9 @@
 
 #import <SenTestingKit/SenTestingKit.h>
 
+
 @interface NewStyleExceptions : SenTestCase {
+
 }
 
 @end

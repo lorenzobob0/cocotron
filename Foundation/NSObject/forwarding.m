@@ -8,22 +8,6 @@
 #define NSABIasm_jmp_objc_msgSend __asm__("jmp _objc_msgSend")
 #define NSABIasm_jmp_objc_msgSend_stret __asm__("jmp _objc_msgSend_stret")
 #endif
-// 64-bit freebsd, FIX
-// #define NSABIasm_jmp_objc_msgSend __asm__("jmp _objc_msgSend@PLT")
-// #define NSABIasm_jmp_objc_msgSend_stret __asm__("jmp _objc_msgSend_stret@PLT");
-
-static void OBJCRaiseException(const char *name,const char *format,...) {
-    va_list arguments;
-    
-    va_start(arguments,format);
-    
-    fprintf(stderr,"ObjC:%s:",name);
-    vfprintf(stderr,format,arguments);
-    fprintf(stderr,"\n");
-    fflush(stderr);
-    va_end(arguments);
-}
-
 
 #if !COCOTRON_DISALLOW_FORWARDING
 @interface NSObject(fastforwarding)
@@ -33,6 +17,18 @@ static void OBJCRaiseException(const char *name,const char *format,...) {
 @interface NSInvocation(private)
 +(NSInvocation *)invocationWithMethodSignature:(NSMethodSignature *)signature arguments:(void *)arguments;
 @end
+
+static void OBJCRaiseException(const char *name,const char *format,...) {
+   va_list arguments;
+
+   va_start(arguments,format);
+
+   fprintf(stderr,"ObjC:%s:",name);
+   vfprintf(stderr,format,arguments);
+   fprintf(stderr,"\n");
+   fflush(stderr);
+   va_end(arguments);
+}
 
 #ifndef GCC_RUNTIME_3
 id NSObjCGetFastForwardTarget(id object,SEL selector){
@@ -102,11 +98,10 @@ void NSObjCForward_stret(void *returnValue,id object,SEL selector,...){
 
 
 // both of these suck, we should be using NSMethodSignature types to extract the frame and create the NSInvocation here
-#ifdef __sparc__
+#ifdef SOLARIS
 id objc_msgForward(id object, SEL message, ...)
 {
     Class class = object_getClass(object);
-
     struct objc_method *method;
     va_list arguments;
     unsigned i, frameLength, limit;
@@ -118,12 +113,13 @@ id objc_msgForward(id object, SEL message, ...)
     }
     IMP imp = method_getImplementation(method);
     frameLength = imp(object, @selector(_frameLengthForSelector:), message);
-    frame = __builtin_alloca(2 * sizeof(unsigned) + frameLength);
+    frame = __builtin_alloca(frameLength);
+
     va_start(arguments, message);
     frame[0] = object;
     frame[1] = message;
-    for (i = 0; i < frameLength / sizeof(unsigned); i++) {
-        frame[i+2] = va_arg(arguments, unsigned);
+    for (i = 2; i < frameLength / sizeof(unsigned); i++) {
+        frame[i] = va_arg(arguments, unsigned);
     }
 
     if ((method = class_getInstanceMethod(class, @selector(forwardSelector:arguments:))) != NULL) {
@@ -135,6 +131,7 @@ id objc_msgForward(id object, SEL message, ...)
         return nil;
     }
 }
+
 
 void objc_msgForward_stret(void *result, id object, SEL message, ...)
 {

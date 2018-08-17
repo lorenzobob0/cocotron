@@ -12,10 +12,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 NSNumber *NSNumber_charNew(NSZone *zone,char value) {
    NSNumber_char *self=NSAllocateObject([NSNumber_char class],0,zone);
-    if (self) {
-       self->_type=kCFNumberCharType;
-       self->_value=value;
-    }
+   self->_type=kCFNumberCharType;
+   self->_value=value;
    return self;
 }
 

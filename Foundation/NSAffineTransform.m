@@ -7,7 +7,6 @@ The above copyright notice and this permission notice shall be included in all c
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 #import <Foundation/NSAffineTransform.h>
 #import <Foundation/NSRaise.h>
-#import <Foundation/NSKeyedArchiver.h>
 #import <Foundation/NSKeyedUnarchiver.h>
 #import <CoreFoundation/CFByteOrder.h>
 #include <math.h>
@@ -54,17 +53,7 @@ static inline NSAffineTransformStruct invertStruct(NSAffineTransformStruct matri
 }
 
 -(void)encodeWithCoder:(NSCoder *)coder {
-   	if ([coder allowsKeyedCoding]) {
-		NSKeyedArchiver *keyed=(NSKeyedArchiver *)coder;
-		CFSwappedFloat32 *words = alloca(sizeof(CFSwappedFloat32) * 6);
-		words[0] = CFConvertFloat32HostToSwapped(_matrix.m11);
-		words[1] = CFConvertFloat32HostToSwapped(_matrix.m12);
-		words[2] = CFConvertFloat32HostToSwapped(_matrix.m21);
-		words[3] = CFConvertFloat32HostToSwapped(_matrix.m22);
-		words[4] = CFConvertFloat32HostToSwapped(_matrix.tX);
-		words[5] = CFConvertFloat32HostToSwapped(_matrix.tY);
-		[keyed encodeBytes:(void*)words length:(sizeof(CFSwappedFloat32) * 6) forKey:@"NSTransformStruct"];
-	}
+   NSUnimplementedMethod();
 }
 
 -initWithCoder:(NSCoder *)coder {

@@ -5,10 +5,12 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
-#ifdef LINUX
+
+// Original - David Young <daver@geeks.org>
 #import <objc/runtime.h>
 #import <Foundation/Foundation.h>
-#import "NSPlatform_linux.h"
+#import <Foundation/NSPlatform_linux.h>
+#import <Foundation/NSTask_linux.h>
 
 #import <rpc/types.h>		// for MAXHOSTNAMELEN, why is that there?
 #include <unistd.h>
@@ -62,10 +64,23 @@ NSString * const NSPlatformExecutableFileExtension=@"";
 NSString * const NSPlatformLoadableObjectFileExtension=@"so";
 NSString * const NSPlatformLoadableObjectFilePrefix=@"lib";
 
+-(Class)taskClass {
+    static Class NSTaskClass = Nil;
+    
+    @synchronized(self)
+	{
+        if (NSTaskClass == Nil) {
+            NSTaskClass = [NSTask_linux class];
+            [NSTaskClass registerNotification];
+        }
+    }
+    
+    return NSTaskClass;
+}
+
 @end
 
 char **NSPlatform_environ() {   
    return __environ;
 }
-#endif
 

@@ -168,23 +168,17 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [self scrollToPoint:[self _scrollPoint]];
 
 	// Be sure our scrollbars are in sync with the new docview bounds
-	if([[self superview] isKindOfClass:[NSScrollView class]]) {
-        NSScrollView *sv = (NSScrollView *)[self superview];
-		[sv tile]; // tiling might be needed if autohide scrollers is enabled
-		[sv reflectScrolledClipView:self];
-	}
+	if([[self superview] isKindOfClass:[NSScrollView class]])
+		[[self superview] reflectScrolledClipView:self];
 }
 
 -(void)viewFrameChanged:(NSNotification *)note {
    [self scrollToPoint:[self _scrollPoint]];
 
 	// Be sure our scrollbars are in sync with the new docview frame
-	if([[self superview] isKindOfClass:[NSScrollView class]]) {
-        NSScrollView *sv = (NSScrollView *)[self superview];
-		[sv tile]; // tiling might be needed if autohide scrollers is enabled
-		[sv reflectScrolledClipView:self];
-	}
-    
+	if([[self superview] isKindOfClass:[NSScrollView class]])
+		[[self superview] reflectScrolledClipView:self];
+	
     // if the docview doesn't completely fill the clip view, we need a redraw
 	// because some of our content has been revealed
     NSRect visibleRect=[self visibleRect];
@@ -195,7 +189,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 -(BOOL)isOpaque {
-    return _drawsBackground && [_backgroundColor alphaComponent] >= 1.;
+   return _drawsBackground;
 }
 
 -(BOOL)isFlipped {
@@ -204,10 +198,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 -(void)drawRect:(NSRect)rect {
    if([_docView isOpaque]){
+    NSRect bounds=[self bounds];
     NSRect frame=[_docView frame];
+    NSRect intersection=NSIntersectionRect(bounds,frame);
 
-    // if the docview completely fills the drawing rect, don't draw the background
-    if(NSContainsRect(frame, rect))
+    // if the docview completely fills the clip view, don't draw the background
+    if(NSEqualRects(bounds,intersection))
      return;
    }
 
@@ -268,7 +264,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 	if (!NSEqualPoints(point, _bounds.origin)) {
 		[self setBoundsOrigin:point];
 		[self setNeedsDisplay:YES];
-
+		
 		if([[self superview] isKindOfClass:[NSScrollView class]])
 			[[self superview] reflectScrolledClipView:self];
 	}

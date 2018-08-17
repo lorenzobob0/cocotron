@@ -11,18 +11,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Onyx2D/O2DataProvider.h>
 #import <Onyx2D/O2Exceptions.h>
 
-NSString *kO2ImagePropertyDPIWidth=@"DPIWidth";
-NSString *kO2ImagePropertyDPIHeight=@"DPIHeight";
-NSString *kO2ImagePropertyPixelHeight=@"PixelHeight";
-NSString *kO2ImagePropertyPixelWidth=@"PixelWidth";
-NSString *kO2ImagePropertyOrientation=@"Orientation";
-
-NSString *kO2ImagePropertyTIFFDictionary=@"{TIFF}";
-NSString *kO2ImagePropertyExifDictionary=@"{Exif}";
-
-NSString *kO2ImagePropertyTIFFXResolution=@"XResolution";
-NSString *kO2ImagePropertyTIFFYResolution=@"YResolution";
-NSString *kO2ImagePropertyTIFFOrientation=@"Orientation";
+NSString *kO2ImagePropertyDPIWidth=@"kCGImagePropertyDPIWidth";
+NSString *kO2ImagePropertyDPIHeight=@"kCGImagePropertyDPIHeight";
 
 @interface _O2ImageSource : O2ImageSource
 @end
@@ -82,12 +72,6 @@ NSString *kO2ImagePropertyTIFFOrientation=@"Orientation";
 	[_provider release];
 	[_options release];
 	[super dealloc];
-}
-
-- (CFStringRef)type
-{
-    O2InvalidAbstractInvocation();
-    return nil;
 }
 
 -(unsigned)count {

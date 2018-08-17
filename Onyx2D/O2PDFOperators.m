@@ -645,7 +645,7 @@ void O2PDF_render_ID(O2PDFScanner *scanner,void *info) {
    O2PDFObject *filter=NULL;
    O2PDFInteger height=0;
    O2PDFBoolean imageMask=NO;
-   O2PDFObject *intent=NULL;
+   const char  *intent=NULL;
    O2PDFBoolean interpolate=NO;
    O2PDFInteger width=0;
    

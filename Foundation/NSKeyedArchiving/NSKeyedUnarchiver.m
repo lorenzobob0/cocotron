@@ -561,10 +561,7 @@ static inline NSNumber *_numberForKey(NSKeyedUnarchiver *self,NSString *key){
         for(i=0;i<count;i++){
             id sibling=[plist objectAtIndex:i];
 
-            id object = [self _decodeObjectWithPropertyList:sibling];
-            if (object) {
-                [result addObject: object];
-            }
+            [result addObject:[self _decodeObjectWithPropertyList:sibling]];
         }
     } else if([plist isKindOfClass:[CFUID class]]) {
         result = [self decodeObjectForUID:[plist integerValue]];

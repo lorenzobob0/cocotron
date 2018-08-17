@@ -181,22 +181,23 @@ NSUInteger NSGetWin1252CStringWithMaxLength(const unichar *characters,NSUInteger
 
 NSString *NSString_win1252NewWithBytes(NSZone *zone,
 										 const char *bytes,NSUInteger length) {
-	NSString_win1252 *self=NSAllocateObject( [NSString_win1252 class],length*sizeof(char),zone);
+	NSString_win1252 *string;
+	int                i;
 
-    if (self) {
-        self->_length=length;
-        int i;
-        for(i=0;i<length;i++) {
-            unsigned char c = ((uint8_t *)bytes)[i];
-            self->_bytes[i]=c;
-            if(_mapWin1252ToUnichar(c) == UNDEFINED_UNICODE) {
-                [self release];
-                return nil;
-            }
+	string=NSAllocateObject( [NSString_win1252 class],length*sizeof(char),zone);
+
+	string->_length=length;
+	for(i=0;i<length;i++) {
+        unsigned char c = ((uint8_t *)bytes)[i];
+		string->_bytes[i]=c;
+        if(_mapWin1252ToUnichar(c) == UNDEFINED_UNICODE) {
+            [string release];
+            return nil;
         }
-        self->_bytes[i]='\0';
     }
-	return self;
+	string->_bytes[i]='\0';
+
+	return string;
 }
 
 -(NSUInteger)length {

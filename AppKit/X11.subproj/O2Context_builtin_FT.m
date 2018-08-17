@@ -29,16 +29,16 @@
    }
 }
 
-static O2Paint *paintFromColor(O2ColorRef color) {
-   size_t count = O2ColorGetNumberOfComponents(color);
-   const float *components = O2ColorGetComponents(color);
+static O2Paint *paintFromColor(O2ColorRef color){
+   size_t    count=O2ColorGetNumberOfComponents(color);
+   const float *components=O2ColorGetComponents(color);
 
    if(count==2)
-       return [[O2Paint_color alloc] initWithGray:components[0] alpha:components[1] surfaceToPaintTransform:O2AffineTransformIdentity];
+    return [[O2Paint_color alloc] initWithGray:components[0]  alpha:components[1]];
    if(count==4)
-       return [[O2Paint_color alloc] initWithRed:components[0] green:components[1] blue:components[2] alpha:components[3] surfaceToPaintTransform:O2AffineTransformIdentity];
+    return [[O2Paint_color alloc] initWithRed:components[0] green:components[1] blue:components[2] alpha:components[3]];
     
-   return [[O2Paint_color alloc] initWithGray:0 alpha:1 surfaceToPaintTransform:O2AffineTransformIdentity];
+   return [[O2Paint_color alloc] initWithGray:0 alpha:1];
 }
 
 static void applyCoverageToSpan_lRGBA8888_PRE(O2argb8u *dst,unsigned char *coverageSpan,O2argb8u *src,int length){
@@ -68,24 +68,24 @@ static void drawFreeTypeBitmap(O2Context_builtin_FT *self,O2Surface *surface,FT_
     O2argb8u *dst=dstBuffer;
     O2argb8u *src=srcBuffer;
     
-    O2argb8u *direct=surface->_read_argb8u(surface,x,y,dst,length);
+    O2argb8u *direct=surface->_read_lRGBA8888_PRE(surface,x,y,dst,length);
 
     if(direct!=NULL)
      dst=direct;
 
     while(YES){
-     int chunk=O2PaintReadSpan_argb8u_PRE(paint,x,y,src,length);
+     int chunk=O2PaintReadSpan_lRGBA8888_PRE(paint,x,y,src,length);
       
      if(chunk<0)
       chunk=-chunk;
      else {
 
-      self->_blend_argb8u_PRE(src,dst,chunk);
+      self->_blend_lRGBA8888_PRE(src,dst,chunk);
       
       applyCoverageToSpan_lRGBA8888_PRE(dst,coverage,src,chunk);
 
       if(direct==NULL)
-       O2SurfaceWriteSpan_argb8u_PRE(surface,x,y,dst,chunk);
+       O2SurfaceWriteSpan_lRGBA8888_PRE(surface,x,y,dst,chunk);
      }
      coverage+=chunk;
 
@@ -106,12 +106,11 @@ static void drawFreeTypeBitmap(O2Context_builtin_FT *self,O2Surface *surface,FT_
 -(void)showGlyphs:(const O2Glyph *)glyphs advances:(const O2Size *)advances count:(unsigned)count {
 // FIXME: use advances if not NULL
 
-   O2AffineTransform transform=O2ContextGetUserSpaceToDeviceSpaceTransform(self);
+   O2AffineTransform transformToDevice=O2ContextGetUserSpaceToDeviceSpaceTransform(self);
    O2GState         *gState=O2ContextCurrentGState(self);
    O2Paint          *paint=paintFromColor(gState->_fillColor);
-   // FIXME: _textTransform no longer exists--is this line still needed?
-   //transform = O2AffineTransformConcat(gState->_textTransform, transform);
-   O2Point           point=O2PointApplyAffineTransform(NSMakePoint(0,0),transform);
+   O2AffineTransform Trm=O2AffineTransformConcat(gState->_textTransform,transformToDevice);
+   O2Point           point=O2PointApplyAffineTransform(NSMakePoint(0,0),Trm);
    
    [self establishFontStateInDeviceIfDirty];
 
@@ -128,7 +127,7 @@ static void drawFreeTypeBitmap(O2Context_builtin_FT *self,O2Surface *surface,FT_
 
    FT_GlyphSlot slot=face->glyph;
 
-   if ((ftError = FT_Set_Char_Size(face,0,gState->_pointSize*64,72.0,72.0))) {
+   if(ftError=FT_Set_Char_Size(face,0,gState->_pointSize*64,72.0,72.0)){
     NSLog(@"FT_Set_Char_Size returned %d",ftError);
     return;
    }
@@ -150,21 +149,20 @@ static void drawFreeTypeBitmap(O2Context_builtin_FT *self,O2Surface *surface,FT_
    
    O2PaintRelease(paint);
    
-   int     glyphAdvances[count];
+   int     advances[count];
    O2Float unitsPerEm=O2FontGetUnitsPerEm(font);
    
-   O2FontGetGlyphAdvances(font,glyphs,count,glyphAdvances);
+   O2FontGetGlyphAdvances(font,glyphs,count,advances);
    
    O2Float total=0;
    
    for(i=0;i<count;i++)
-    total+=glyphAdvances[i];
+    total+=advances[i];
     
    total=(total/O2FontGetUnitsPerEm(font))*gState->_pointSize;
-   
-   //FIXME: _textTransform no longer exists--are these lines still needed?
-   //O2ContextCurrentGState(self)->_textTransform.tx+=total;
-   //O2ContextCurrentGState(self)->_textTransform.ty+=0;
+      
+   O2ContextCurrentGState(self)->_textTransform.tx+=total;
+   O2ContextCurrentGState(self)->_textTransform.ty+=0;
 }
 
 @end

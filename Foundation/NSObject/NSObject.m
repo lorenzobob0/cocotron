@@ -100,7 +100,7 @@ static IMP objc_msg_forward(id rcv, SEL message) {
 
 	check=[check superclass];
 
-   }while(check && check != [NSObject class] &&
+   }while(check != [NSObject class] &&
 		  check != [NSProxy class]);
    
    return NO;
@@ -160,10 +160,6 @@ static IMP objc_msg_forward(id rcv, SEL message) {
 
 +(NSString *)description {
    return NSStringFromClass(self);
-}
-
-+(NSString *)debugDescription {
-    return [self description];
 }
 
 +alloc {
@@ -409,10 +405,6 @@ static IMP objc_msg_forward(id rcv, SEL message) {
 
 -(NSString *)description {
    return [NSString stringWithFormat:@"<%@ 0x%08x>",[self class],self];
-}
-
--(NSString *)debugDescription {
-    return [self description];
 }
 
 @end

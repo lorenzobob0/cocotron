@@ -18,27 +18,16 @@ NSString* NSImageCompressionFactor = @"NSImageCompressionFactor";
 @implementation NSBitmapImageRep
 
 +(NSArray *)imageUnfilteredFileTypes {
-    return [NSArray arrayWithObjects:
-            // Try to order them so the most used ones are at the top of the list
-            @"png",
-            @"tiff",
-            @"tif",
-            @"jpg",
-            @"jpeg",
-            @"icns",
-            @"gif",
-            @"bmp",
-            @"PNG",
-            @"TIFF",
-            @"TIF",
-            @"JPG",
-            @"JPEG",
-            @"ICNS",
-            @"jpe",
-            @"JPE",
-            @"GIF",
-            @"BMP",
-            nil];
+   return [NSArray arrayWithObjects:	@"tiff", @"TIFF",
+										@"tif",  @"TIF",
+										@"png",  @"PNG",
+										@"jpg",  @"JPG",
+										@"jpeg", @"JPEG",
+										@"jpe",  @"JPE",
+										@"gif",  @"GIF",
+										@"bmp",  @"BMP",
+										@"icns", @"ICNS",
+										nil];
 }
 
 +(NSArray *)imageRepsWithContentsOfFile:(NSString *)path {
@@ -211,13 +200,16 @@ NSString* NSImageCompressionFactor = @"NSImageCompressionFactor";
    if(graphicsPort==NULL){
     [self dealloc];
     return nil;
-   }
+}
 
-   [self initWithData:(NSData *)CGContextCaptureBitmap(graphicsPort,rect)];
+   CGImageRef image=CGBitmapContextCreateImage(graphicsPort);
+   
+   self=[self initWithCGImage:image];
+   
+   CGImageRelease(image);
    
    return self;
 }
-
 
 -initWithData:(NSData *)data {
    CGImageSourceRef imageSource=CGImageSourceCreateWithData((CFDataRef)data,nil);
@@ -591,19 +583,13 @@ NSString* NSImageCompressionFactor = @"NSImageCompressionFactor";
      return nil;
    }
 
-    int dpi = 72;
-    if (_size.width > 0) {
-        dpi = ceilf(72 * _pixelsWide / _size.width);
-    }
    NSMutableData        *result=[NSMutableData data];
 	// Convert the NS options to CG options - just NSImageCompressionFactor for now
-	NSDictionary *CGProperties = [NSMutableDictionary dictionary];
-
-    [CGProperties setValue: [NSNumber numberWithInt: dpi] forKey: (id)kCGImageDestinationDPI];
-    
+	NSDictionary *CGProperties = nil;
 	if ([properties count]) {
 		id compressionFactor = [properties valueForKey:NSImageCompressionFactor];
 		if (compressionFactor) {
+			CGProperties = [NSMutableDictionary dictionary];
 			[CGProperties setValue:compressionFactor forKey:(id)kCGImageDestinationLossyCompressionQuality];
 		}
 	}

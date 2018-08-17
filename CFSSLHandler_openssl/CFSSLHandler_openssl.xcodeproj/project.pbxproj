@@ -120,11 +120,8 @@
 				089C1671FE841209C02AAC07 /* External Frameworks and Libraries */,
 				19C28FB6FE9D52B211CA2CBB /* Products */,
 			);
-			indentWidth = 4;
 			name = CFSSLHandler_openssl;
 			sourceTree = "<group>";
-			tabWidth = 4;
-			usesTabs = 0;
 		};
 		089C1671FE841209C02AAC07 /* External Frameworks and Libraries */ = {
 			isa = PBXGroup;
@@ -362,7 +359,6 @@
 				EXECUTABLE_FOLDER_PATH = "$(CONTENTS_FOLDER_PATH)/Windows";
 				EXECUTABLE_SUFFIX = .1.0.dll;
 				HEADER_SEARCH_PATHS = "$DSTROOT/openssl-0.9.8h-1/include";
-				GCC_MODEL_TUNING = G5;
 				INFOPLIST_FILE = Info.plist;
 				INSTALL_PATH = /Frameworks/Foundation.framework/Resources;
 				LIBRARY_SEARCH_PATHS = "$DSTROOT/openssl-0.9.8h-1/lib";

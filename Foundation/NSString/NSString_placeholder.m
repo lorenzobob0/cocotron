@@ -15,7 +15,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSUnicodeCaseMapping.h>
 #import <Foundation/NSString_nextstep.h>
 #import <Foundation/NSString_isoLatin1.h>
-#import <Foundation/NSString_isoLatin2.h>
 #import <Foundation/NSString_win1252.h>
 #import <Foundation/NSString_macOSRoman.h>
 #import <Foundation/NSStringFormatter.h>
@@ -24,8 +23,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSStringUTF8.h>
 #import <Foundation/NSStringSymbol.h>
 #import <Foundation/NSRaiseException.h>
-
-#import "NSStringEncoder.h"
 
 #import <Foundation/NSData.h>
 #import <Foundation/NSCoder.h>
@@ -97,17 +94,11 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
             characters = NSUnicodeFromBytesUTF16BigEndian(bytes, length, &resultLength);
             return (NSString_placeholder *)NSString_unicodePtrNewNoCopy(NULL, characters, resultLength, YES);
 
-        default: {
-            // Let's convert the encoding to unicode and use that
-            unichar *unicodePtr = NSBytesToUnicode(bytes, length, encoding, &resultLength, NULL);
-            if (unicodePtr) {
-                return (NSString_placeholder *)NSString_unicodePtrNewNoCopy(NULL, unicodePtr, resultLength, YES);
-            }
-        }
+        default:
+            NSRaiseException(NSInvalidArgumentException, nil, _cmd, @"encoding %d not (yet) implemented", encoding);
             break;
     }
 
-    NSRaiseException(NSInvalidArgumentException, nil, _cmd, @"encoding %d not (yet) implemented", encoding);
     return nil;
 }
 

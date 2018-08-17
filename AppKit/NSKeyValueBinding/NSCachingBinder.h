@@ -11,11 +11,13 @@
 
 #import "NSBinder.h"
 
-@interface _NSCachingBinder : _NSBinder {
-    id _cachedValue;
-    BOOL _bound;
-    BOOL _currentlyTransferring;
-    BOOL _isObserving;
+
+@interface _NSCachingBinder : _NSBinder 
+{
+  id _cachedValue;
+  BOOL _bound;
+  BOOL _currentlyTransferring;
+  BOOL _isObserving;
 }
 
 - (id)cachedValue;

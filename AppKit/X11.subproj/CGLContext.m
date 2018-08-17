@@ -8,7 +8,6 @@
 #import <X11/Xlib.h>
 #import <GL/gl.h>
 #import <GL/glx.h>
-#import <GL/glext.h>
 #import <pthread.h>
 
 struct _CGLContextObj {
@@ -203,9 +202,9 @@ CGLError CGLCreateContext(CGLPixelFormatObj pixelFormat,CGLContextObj share,CGLC
         
    window = XCreateWindow(display,parent, 0, 0, 1,1, 0, visualInfo->depth, InputOutput, visualInfo->visual, CWBorderPixel | CWColormap | CWEventMask, &xattr);
       
-   //XSetWindowBackgroundPixmap(display, window, None);
-   //[X11Window removeDecorationForWindow:window onDisplay:display];
-   
+   // XSetWindowBackgroundPixmap(_display, _window, None);
+   // [X11Window removeDecorationForWindow:_window onDisplay:_display];
+      
    XMapWindow(display, window);
 
    return CGLCreateContextForWindow(pixelFormat,share,resultp,display,visualInfo,window);
@@ -320,7 +319,7 @@ CGLError CGLSetParameter(CGLContextObj context,CGLContextParameter parameter,con
      break;
      
     default:
-     NSLog(@"CGLSetParameter unimplemented for parameter %i",parameter);
+     NSUnimplementedFunction();
      break;
    }
   
@@ -422,30 +421,4 @@ CGLError CGLDescribePixelFormat(CGLPixelFormatObj pixelFormat,GLint screenNumber
      return kCGLNoError;
 }
 
-void CGLBufferData(GLenum target,GLsizeiptr size,const GLvoid *data,GLenum usage) {
-    glBufferData(target,size,data,usage);
-}
 
-void CGLGenBuffers(GLsizei n,GLuint *buffers) {
-    glGenBuffers(n,buffers);
-}
-
-void CGLDeleteBuffers(GLsizei n,const GLuint *buffers) {
-    glDeleteBuffers(n,buffers);
-}
-
-void CGLBindBuffer(GLenum target,GLuint buffer) {
-    glBindBuffer(target,buffer);
-}
-
-void *CGLMapBuffer(GLenum target,GLenum access) {
-    return glMapBuffer(target,access);
-}
-
-CGL_EXPORT GLboolean CGLUnmapBuffer(GLenum target) {
-    return glUnmapBuffer(target);
-}
-
-void CGLBufferSubData(GLenum target,GLintptr offset,GLsizeiptr size,const GLvoid *data) {
-    glBufferSubData(target,offset,size,data);
-}

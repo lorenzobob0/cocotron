@@ -48,19 +48,17 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    [_view setFont:font];
 }
 
--(void)setSelectedIndex:(int)index {
-   [_view setSelectedIndex:index];
-}
-
 -(int)runTrackingWithEvent:(NSEvent *)event {
    NSSize  size=[_view sizeForContents];
    NSSize  scrollViewSize=[NSScrollView frameSizeForContentSize:size hasHorizontalScroller:[_scrollView hasHorizontalScroller] hasVerticalScroller:[_scrollView hasVerticalScroller] borderType:NSLineBorder];
    NSRect  frame;
 
+   [self orderFront:nil];
+// FIX, for some reason setContentSize: doesn't work before show, investigate
    frame=[self frame];
    frame.size=scrollViewSize;
    frame.origin.y-=size.height;
-   [self setFrame:frame display:YES];
+   [self setFrame:frame display:NO];
 
    [_scrollView setFrameSize:scrollViewSize];
    [_scrollView setFrameOrigin:NSMakePoint(0,0)];

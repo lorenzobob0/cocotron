@@ -5,7 +5,7 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
-#if defined(LINUX) || defined(__APPLE__)
+
 #import <objc/runtime.h>
 #import <Foundation/Foundation.h>
 #import <Foundation/NSSelectInputSourceSet.h>
@@ -19,7 +19,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSPersistantDomain_posix.h>
 #import <Foundation/NSTimeZone_posix.h>
 #import <Foundation/NSTask_posix.h>
-#import <Foundation/NSSocketPort_posix.h>
 #import <Foundation/NSPipe_posix.h>
 #import <Foundation/NSRaiseException.h>
 
@@ -49,11 +48,17 @@ BOOL NSCurrentLocaleIsMetric(){
 @implementation NSPlatform_posix
 
 -(Class)taskClass {
-    return [NSTask_posix class];
-}
-
--(Class)socketPortClass {
-    return [NSSocketPort_posix class];
+    static Class NSTaskClass = Nil;
+    
+    @synchronized(self)
+	{
+        if (NSTaskClass == Nil) {
+            NSTaskClass = [NSTask_posix class];
+            [NSTaskClass registerNotification];
+        }
+    }
+    
+    return NSTaskClass;
 }
 
 -(Class)pipeClass {
@@ -355,6 +360,5 @@ void *NSPlatformContentsOfFile(NSString *path,NSUInteger *lengthp) {
     return YES;
 }
 @end
-#endif
 
 

@@ -8,49 +8,46 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 #import <Foundation/Foundation.h>
 
-@class NSPrintInfo, NSPrintPanel, NSView, NSGraphicsContext;
+@class NSPrintInfo,NSPrintPanel,NSView, NSGraphicsContext;
 
 @interface NSPrintOperation : NSObject {
-    NSView *_view;
-    NSPrintInfo *_printInfo;
-    NSView *_accessoryView;
-    NSPrintPanel *_printPanel;
-    BOOL _showsPrintPanel;
-    int _currentPage;
-    NSGraphicsContext *_context;
-    NSRect _insideRect;
-    NSMutableData *_mutableData;
-    int _type;
-    BOOL _showsPrintProgressPanel;
+   NSView            *_view;
+   NSPrintInfo       *_printInfo;
+   NSView            *_accessoryView;
+   NSPrintPanel      *_printPanel;
+   BOOL               _showsPrintPanel;
+   int                _currentPage;
+   NSGraphicsContext *_context;
+   NSRect             _insideRect;
+   NSMutableData     *_mutableData;
+   int                _type;
 }
 
-+ (NSPrintOperation *)currentOperation;
++(NSPrintOperation *)currentOperation;
 
-+ (NSPrintOperation *)printOperationWithView:(NSView *)view;
-+ (NSPrintOperation *)printOperationWithView:(NSView *)view printInfo:(NSPrintInfo *)printInfo;
-+ (NSPrintOperation *)PDFOperationWithView:(NSView *)view insideRect:(NSRect)rect toData:(NSMutableData *)data;
-+ (NSPrintOperation *)PDFOperationWithView:(NSView *)view insideRect:(NSRect)rect toData:(NSMutableData *)data printInfo:(NSPrintInfo *)printInfo;
-+ (NSPrintOperation *)EPSOperationWithView:(NSView *)view insideRect:(NSRect)rect toData:(NSMutableData *)data;
-+ (NSPrintOperation *)EPSOperationWithView:(NSView *)view insideRect:(NSRect)rect toData:(NSMutableData *)data printInfo:(NSPrintInfo *)printInfo;
++(NSPrintOperation *)printOperationWithView:(NSView *)view;
++(NSPrintOperation *)printOperationWithView:(NSView *)view printInfo:(NSPrintInfo *)printInfo;
++(NSPrintOperation *)PDFOperationWithView:(NSView *)view insideRect:(NSRect)rect toData:(NSMutableData *)data;
++(NSPrintOperation *)PDFOperationWithView:(NSView *)view insideRect:(NSRect)rect toData:(NSMutableData *)data printInfo:(NSPrintInfo *)printInfo;
++(NSPrintOperation *)EPSOperationWithView:(NSView *)view insideRect:(NSRect)rect toData:(NSMutableData *)data;
++(NSPrintOperation *)EPSOperationWithView:(NSView *)view insideRect:(NSRect)rect toData:(NSMutableData *)data printInfo:(NSPrintInfo *)printInfo;
 
-- (BOOL)isCopyingOperation;
+-(BOOL)isCopyingOperation;
 
-- (void)setAccessoryView:(NSView *)view;
+-(void)setAccessoryView:(NSView *)view;
 
-- (NSView *)view;
-- (NSPrintInfo *)printInfo;
-- (NSPrintPanel *)printPanel;
-- (BOOL)showsPrintPanel;
-- (void)setShowsPrintPanel:(BOOL)flag;
+-(NSView *)view;
+-(NSPrintInfo *)printInfo;
+-(NSPrintPanel *)printPanel;
+-(BOOL)showsPrintPanel;
 
-- (BOOL)showsProgressPanel;
-- (void)setShowsProgressPanel:(BOOL)flag;
+-(void)setShowsPrintPanel:(BOOL)flag;
 
-- (int)currentPage;
+-(int)currentPage;
 
-- (NSGraphicsContext *)createContext;
-- (void)destroyContext;
+-(NSGraphicsContext *)createContext;
+-(void)destroyContext;
 
-- (BOOL)runOperation;
+-(BOOL)runOperation;
 
 @end

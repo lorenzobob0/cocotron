@@ -5,7 +5,6 @@
  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
  
  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
-#ifdef PLATFORM_IS_POSIX
 
 #import "NSCancelInputSource_posix.h"
 #import <Foundation/NSSelectInputSource.h>
@@ -29,7 +28,6 @@
    [super dealloc];
 }
 
-/*
 -(NSUInteger)processImmediateEvents:(NSUInteger)selectEvent {
    if(selectEvent & NSSelectReadEvent) {
       uint8_t buf[256];
@@ -38,7 +36,7 @@
       return NSSelectReadEvent;
    }
    return 0;
-}*/
+}
 
 -(void)cancel {
    if(!_hasCanceled) {
@@ -49,4 +47,3 @@
 }
 
 @end
-#endif

@@ -449,11 +449,9 @@ static void byteCopy(void *src,void *dst,NSUInteger length){
                     @throw @"NSInvocation: current implementation of struct returning invocation is not supported by Clang.";
 #else
                     struct structReturn {
-                        char *result;;
+                        char result[size];
                     } (*function)() = (struct structReturn (*)())msgSendv; // should be msgSend_stret
                     struct structReturn value;
-
-			value.result = calloc(size, sizeof(char));
 
 // FIX internal compiler error on windows/linux/bsd
 #if !defined(WIN32) && !defined(BSD) && !defined(LINUX)
@@ -463,7 +461,6 @@ static void byteCopy(void *src,void *dst,NSUInteger length){
 #endif
 
                     [self setReturnValue:&value];
-			free(value.result);
 #endif
                 }
             }

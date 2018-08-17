@@ -57,7 +57,6 @@ const float NSStringDrawerLargeDimension=1000000.;
    [_textStorage endEditing];
 
    glyphRange=[_layoutManager glyphRangeForTextContainer:_textContainer];
-    
    [_layoutManager drawBackgroundForGlyphRange:glyphRange atPoint:rect.origin];
    [_layoutManager drawGlyphsForGlyphRange:glyphRange atPoint:rect.origin];
 }

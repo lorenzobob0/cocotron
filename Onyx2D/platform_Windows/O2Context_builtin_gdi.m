@@ -297,9 +297,8 @@ static inline void purgeGlyphCache(O2Context_builtin_gdi *self){
    int               i;
    O2Size            defaultAdvances[count];
    
-    if (advances == NULL) {
-        O2ContextGetDefaultAdvances(self,glyphs,defaultAdvances,count);
-    }
+   O2ContextGetDefaultAdvances(self,glyphs,defaultAdvances,count);
+      
    if(O2FontGetPlatformType(font)==O2FontPlatformTypeGDI){
 #if 0
 #if 1
@@ -361,6 +360,7 @@ static inline void purgeGlyphCache(O2Context_builtin_gdi *self){
        erase[c]=0x00;
       erase+=self->_scratchWidth;
      }
+     
      ExtTextOutW(self->_scratchDC,0,0,ETO_GLYPH_INDEX,NULL,(void *)glyphs,count,NULL);
     drawGray8Stencil(self,self->_surface,point.x,point.y,self->_textFillPaint,self->_scratchBitmap,self->_scratchWidth,extent.cx,extent.cy,0,extent.cy-_gdiDescent);
 
@@ -421,6 +421,7 @@ static inline void purgeGlyphCache(O2Context_builtin_gdi *self){
         erase[c]=0x44;
        erase+=self->_scratchWidth;
       }
+      
       ExtTextOutW(self->_scratchDC,0,0,ETO_GLYPH_INDEX,NULL,(void *)glyphs+i,1,NULL);
 
       stencil=O2GlyphStencilCreate(extent.cx,extent.cy,self->_scratchBitmap,self->_scratchWidth,0,extent.cy-_gdiDescent);
@@ -452,29 +453,16 @@ static inline void purgeGlyphCache(O2Context_builtin_gdi *self){
 		   self->_gdiFont=[(O2Font_gdi *)font createGDIFontSelectedInDC:context->_dc pointSize:ABS(fontSize.height) angle:angle];
 	   }
 	   SelectObject(context->_dc,[self->_gdiFont fontHandle]);
-       SetTextColor(context->_dc,COLORREFFromColor(O2ContextFillColor(self)));
+    SetTextColor(context->_dc,COLORREFFromColor(O2ContextFillColor(self)));
 
-       O2Font *font=O2GStateFont(gState);
-       
-       const O2Size *usedAdvances;
-       
-       if(advances!=NULL) {
-           usedAdvances=advances;
-       } else {
-           usedAdvances=defaultAdvances;
-       }
-       
-       // ExtTextOutW wants int advances
-       INT dx[count];
-       float total = point.x;
-       float previousEnd = lroundf(point.x);
-       for (int i = 0; i < count; i++) {
-           float delta = O2SizeApplyAffineTransform(usedAdvances[i],Trm).width + gState->_characterSpacing;
-           total += delta;
-           dx[i] = lroundf(total - previousEnd);
-           previousEnd += dx[i];
-       }
-	   ExtTextOutW(context->_dc,lroundf(point.x),lroundf(point.y),ETO_GLYPH_INDEX,NULL,(void *)glyphs,count,dx);
+    INT dx[count];
+    
+	   if(advances!=NULL) {
+		   for(i=0;i<count;i++) {
+			   dx[i]=lroundf(O2SizeApplyAffineTransform(advances[i],Trm).width);
+		   }
+	   }
+	   ExtTextOutW(context->_dc,lroundf(point.x),lroundf(point.y),ETO_GLYPH_INDEX,NULL,(void *)glyphs,count,(advances!=NULL)?dx:NULL);
 #endif
    }
    else if(O2FontGetPlatformType(font)==O2FontPlatformTypeFreeType){
@@ -551,71 +539,6 @@ static inline void purgeGlyphCache(O2Context_builtin_gdi *self){
    O2ContextConcatAdvancesToTextMatrix(self,useAdvances,count);
    
    O2SurfaceUnlock(_surface);
-}
-
-static inline BOOL transformIsFlipped(O2AffineTransform matrix){
-   return (matrix.d<0)?YES:NO;
-}
-
--(NSData *)captureBitmapInRect:(NSRect)rect {
-   O2AffineTransform transformToDevice=O2ContextGetUserSpaceToDeviceSpaceTransform(self);
-   NSPoint           pt = O2PointApplyAffineTransform(rect.origin, transformToDevice);
-   int               width = rect.size.width;
-   int               height = rect.size.height;
-   unsigned long     i, bmSize = 4*width*height;
-   void             *bmBits;
-   HBITMAP           bmHandle;
-   BITMAPFILEHEADER  bmFileHeader = {0, 0, 0, 0, 0};
-   BITMAPINFO        bmInfo;
-
-   if (transformIsFlipped(transformToDevice))
-      pt.y -= rect.size.height;
-
-   HDC destDC = CreateCompatibleDC(_dc);
-   if (destDC == NULL)
-   {
-      NSLog(@"CreateCompatibleDC failed");
-      return nil;
-   }
-
-   bmInfo.bmiHeader.biSize=sizeof(BITMAPINFOHEADER);
-   bmInfo.bmiHeader.biWidth=width;
-   bmInfo.bmiHeader.biHeight=height;
-   bmInfo.bmiHeader.biPlanes=1;
-   bmInfo.bmiHeader.biBitCount=32;
-   bmInfo.bmiHeader.biCompression=BI_RGB;
-   bmInfo.bmiHeader.biSizeImage=0;
-   bmInfo.bmiHeader.biXPelsPerMeter=0;
-   bmInfo.bmiHeader.biYPelsPerMeter=0;
-   bmInfo.bmiHeader.biClrUsed=0;
-   bmInfo.bmiHeader.biClrImportant=0;
-
-   bmHandle = CreateDIBSection(_dc, &bmInfo, DIB_RGB_COLORS, &bmBits, NULL, 0);
-   if (bmHandle == NULL)
-   {
-      NSLog(@"CreateDIBSection failed");
-      return nil;
-   }
-
-   SelectObject(destDC, bmHandle);
-   BitBlt(destDC, 0, 0, width, height, _dc, pt.x, pt.y, SRCCOPY);
-   GdiFlush();
-
-   ((char *)&bmFileHeader)[0] = 'B';
-   ((char *)&bmFileHeader)[1] = 'M';
-   for (i = 3; i < bmSize; i += 4)
-   	((char *)bmBits)[i] = 255;			// set alpha value
-   bmFileHeader.bfOffBits = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER);
-   bmFileHeader.bfSize = bmFileHeader.bfOffBits + bmSize;
-
-   NSMutableData *result = [NSMutableData dataWithBytes:&bmFileHeader length:sizeof(BITMAPFILEHEADER)];
-   [result appendBytes:&bmInfo.bmiHeader length:sizeof(BITMAPINFOHEADER)];
-   [result appendBytes:bmBits length:bmSize];
-   
-   DeleteObject(bmHandle);
-   DeleteDC(destDC);
-
-   return result;
 }
 
 @end

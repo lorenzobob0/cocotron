@@ -8,7 +8,9 @@
 
 #import "Demo.h"
 
+
 @interface DemoAntialias : Demo {
+
 }
 
 @end

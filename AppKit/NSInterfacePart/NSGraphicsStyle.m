@@ -155,18 +155,6 @@ static NSDictionary *sDimmedMenuTextShadowAttributes = nil;
 	return result;
 }
 
--(NSSize)menuItemAttributedTextSize:(NSAttributedString *)title {
-	NSSize result = NSZeroSize;
-	Margins margins = [self menuItemTextMargins];
-	
-	result = [title size];
-	
-	result.height += (margins.top + margins.bottom);
-	result.width += (margins.left + margins.right);
-	
-	return result;
-}
-
 -(float)menuBarHeight
 {
 	NSDictionary *attributes=[NSDictionary dictionaryWithObjectsAndKeys:
@@ -203,9 +191,6 @@ static NSDictionary *sDimmedMenuTextShadowAttributes = nil;
 
 -(void)drawMenuItemText:(NSString *)string inRect:(NSRect)rect enabled:(BOOL)enabled selected:(BOOL)selected
 {
-    // Ensure we have enough width - fractional widths give float comparison trouble
-    rect.size.width = ceilf(rect.size.width);
-    
 	Margins margins=[self menuItemTextMargins];
 	
 	rect.origin.x += margins.left;
@@ -239,9 +224,6 @@ static NSDictionary *sDimmedMenuTextShadowAttributes = nil;
 
 -(void)drawAttributedMenuItemText:(NSAttributedString *)string inRect:(NSRect)rect enabled:(BOOL)enabled selected:(BOOL)selected
 {
-    // Ensure we have enough width - fractional widths give float comparison trouble
-    rect.size.width = ceilf(rect.size.width);
-
 	NSMutableAttributedString* mutableString = [string mutableCopy];
 	
 	Margins margins=[self menuItemTextMargins];
@@ -255,8 +237,13 @@ static NSDictionary *sDimmedMenuTextShadowAttributes = nil;
 	
 	if (enabled)
 	{
-		if (!selected) {
-			[mutableString addAttributes: [NSDictionary dictionaryWithObject: [NSColor menuItemTextColor] forKey: NSForegroundColorAttributeName] range: range];
+		if (selected)
+		{
+			[mutableString addAttributes: [NSDictionary dictionaryWithObject: [NSColor whiteColor] forKey: NSForegroundColorAttributeName] range: range];
+		}
+		else
+		{
+			[mutableString addAttributes: [NSDictionary dictionaryWithObject: [NSColor blackColor] forKey: NSForegroundColorAttributeName] range: range];
 		}
 		[mutableString drawInRect:rect];
 	}

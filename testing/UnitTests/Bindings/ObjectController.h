@@ -8,10 +8,11 @@
 
 #import "NibBasedTest.h"
 
+
 @interface ObjectController : NibBasedTest {
-    float _floatValue;
-    NSObjectController *_objectController;
-    NSSlider *_slider;
+   float _floatValue;
+   NSObjectController* _objectController;
+   NSSlider *_slider;
 }
 
 @end

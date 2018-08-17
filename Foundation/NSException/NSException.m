@@ -43,6 +43,49 @@ NSString * const NSInconsistentArchiveException=@"NSInconsistentArchiveException
      reason:NSStringWithFormatArguments(format,arguments) userInfo:nil] raise];
 }
 
+void __NSPushExceptionFrame(NSExceptionFrame *frame) {
+   frame->parent=NSThreadCurrentHandler();
+   frame->exception=nil;
+
+   NSThreadSetCurrentHandler(frame);
+}
+
+void __NSPopExceptionFrame(NSExceptionFrame *frame) {
+   NSThreadSetCurrentHandler(frame->parent);
+}
+
+static void defaultHandler(NSException *exception){
+   fprintf(stderr,"*** Uncaught exception <%s> *** %s\n",[[exception name] cString],[[exception reason] cString]);
+}
+
+void _NSRaiseException(NSException *exception) {
+   NSExceptionFrame *top=NSThreadCurrentHandler();
+
+   if(top==NULL){
+    NSUncaughtExceptionHandler *proc=NSGetUncaughtExceptionHandler();
+
+    if(proc==NULL)
+     defaultHandler(exception);
+    else
+     proc(exception);
+   }
+   else {
+    NSThreadSetCurrentHandler(top->parent);
+
+    top->exception=exception;
+
+    longjmp(top->state,1);
+   }
+}
+
+NSUncaughtExceptionHandler *NSGetUncaughtExceptionHandler(void) {
+   return NSThreadUncaughtExceptionHandler();
+}
+
+void NSSetUncaughtExceptionHandler(NSUncaughtExceptionHandler *proc) {
+   NSThreadSetUncaughtExceptionHandler(proc);
+}
+
 -initWithName:(NSString *)name reason:(NSString *)reason
   userInfo:(NSDictionary *)userInfo {
    _name=[name copy];
@@ -86,12 +129,12 @@ NSString * const NSInconsistentArchiveException=@"NSInconsistentArchiveException
 
 -(void)raise {
    if(NSDebugEnabled){
-    NSCLog("RAISE %s",[[self description] UTF8String]);
+    NSCLog("RAISE %s",[[self description] cString]);
     return;
    }
    [_callStack release];
    _callStack=[[NSThread callStackReturnAddresses] retain];
-   objc_exception_throw(self);
+   _NSRaiseException(self);
 }
 
 -(NSString *)name {
@@ -111,3 +154,40 @@ NSString * const NSInconsistentArchiveException=@"NSInconsistentArchiveException
 }
 
 @end
+
+#if !defined(GCC_RUNTIME_3) && !defined(APPLE_RUNTIME_4)
+
+void __gnu_objc_personality_sj0()
+{
+	printf("shouldn't get here");
+	abort();
+}
+
+void objc_exception_try_enter(void* exceptionFrame)
+{
+	__NSPushExceptionFrame((NSExceptionFrame *)exceptionFrame);
+}
+
+void objc_exception_try_exit(void* exceptionFrame)
+{
+	__NSPopExceptionFrame((NSExceptionFrame *)exceptionFrame);
+}
+
+id objc_exception_extract(void *exceptionFrame)
+{
+    NSExceptionFrame *frame = (NSExceptionFrame *)exceptionFrame;
+    return (id)frame->exception;
+}
+
+void objc_exception_throw(id exception)
+{
+	_NSRaiseException(exception);
+	abort();
+}
+
+int objc_exception_match(Class exceptionClass, id exception)
+{
+	return [exception isKindOfClass:exceptionClass];
+}
+
+#endif

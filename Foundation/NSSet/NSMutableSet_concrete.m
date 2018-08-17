@@ -14,9 +14,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 NSSet *NSMutableSet_concreteNew(NSZone *zone,NSUInteger capacity) {
    NSMutableSet_concrete *self=NSAllocateObject([NSMutableSet_concrete class],0,zone);
-    if (self) {
-        NSSetTableInit(&(self->_table),capacity,zone);
-    }
+
+   NSSetTableInit(&(self->_table),capacity,zone);
 
    return self;
 }
@@ -24,13 +23,12 @@ NSSet *NSMutableSet_concreteNew(NSZone *zone,NSUInteger capacity) {
 NSSet *NSMutableSet_concreteNewWithObjects(NSZone *zone,id *objects,
   NSUInteger count) {
    NSMutableSet_concrete *self=NSAllocateObject([NSMutableSet_concrete class],0,zone);
-    if (self) {
-       NSUInteger i;
+   NSUInteger i;
 
-       NSSetTableInit(&(self->_table),count,zone);
-       for(i=0;i<count;i++)
-        NSSetTableAddObjectNoGrow(&(self->_table),objects[i]);
-    }
+   NSSetTableInit(&(self->_table),count,zone);
+   for(i=0;i<count;i++)
+    NSSetTableAddObjectNoGrow(&(self->_table),objects[i]);
+
    return self;
 }
 

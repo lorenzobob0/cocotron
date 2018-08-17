@@ -201,7 +201,8 @@ static inline void appendCString(NSStringBuffer *buffer,const char *cString,
    if(cString==NULL)
     cString="(null pointer)";
 
-   characters=NSString_anyCStringToUnicode(NSASCIIStringEncoding,cString,strlen(cString),&length,NULL);
+   characters=NSCharactersFromCString(cString,strlen(cString),&length,NULL);
+
    appendCharacters(buffer,characters,length,fillChar,leftAdj,fieldWidth);
 
    NSZoneFree(NULL,characters);
@@ -214,22 +215,12 @@ static inline void appendCStringChar(NSStringBuffer *buffer,char c,
 }
 
 double roundDouble(double value) {
-   char *p = (char *)&value;
-
 #ifdef WINDOWS
-   value = round(value);
+   return round(value);
 #else
 // some OS's don't have round(), Linux?
-   value = (value < 0.0) ? ceil(value-0.5) : floor(value+0.5);
+   return (value < 0.0 )? ceil(value-0.5) : floor(value+0.5);
 #endif
-
-#ifdef __LITTLE_ENDIAN__
-   p[0] |= 0x01;
-#else
-   p[7] |= 0x01;
-#endif   
-
-   return value;
 }
 
 static inline void appendFloat(NSStringBuffer *buffer,double value,
@@ -265,8 +256,6 @@ static inline void appendFloat(NSStringBuffer *buffer,double value,
 		// So let's do it our own way
 		integral = trunc(value);
 		fractional = roundDouble(power * (value - integral)) / power;;
-		// Add some epsilon smaller than the precision to fix rounding problems
-		fractional+= pow(10., -precision-2);
 		if (fractional >= 1.) {
 			// Rounding to next integral
 			integral++;
@@ -483,8 +472,6 @@ unichar *NSCharactersNewWithFormatAndGrouping(NSString *format,NSDictionary *loc
       switch(unicode){
 
        case 'h': case 'l': case 'q':
-        // New Cocoa special modes for NSInteger and NSUInteger
-        case 'z': case 't':
         dwModify=unicode;
         break;
 
@@ -507,8 +494,6 @@ unichar *NSCharactersNewWithFormatAndGrouping(NSString *format,NSDictionary *loc
           value=va_arg(arguments,long);
          else if(dwModify=='q')
           value=va_arg(arguments,long long);
-         else if(dwModify=='z')
-          value=va_arg(arguments, NSInteger);
          else
           value=va_arg(arguments,int);
 
@@ -541,8 +526,6 @@ unichar *NSCharactersNewWithFormatAndGrouping(NSString *format,NSDictionary *loc
           value=va_arg(arguments,unsigned long);
          else if(dwModify=='q')
           value=va_arg(arguments,unsigned long long);
-         else if(dwModify=='t')
-          value=va_arg(arguments, NSUInteger);
          else
           value=va_arg(arguments,unsigned int);
 
@@ -559,8 +542,6 @@ unichar *NSCharactersNewWithFormatAndGrouping(NSString *format,NSDictionary *loc
           value=va_arg(arguments,unsigned long);
          else if(dwModify=='q')
           value=va_arg(arguments,unsigned long long);
-         else if(dwModify=='t')
-          value=va_arg(arguments, NSUInteger);
          else
           value=va_arg(arguments,unsigned int);
 
@@ -577,8 +558,6 @@ unichar *NSCharactersNewWithFormatAndGrouping(NSString *format,NSDictionary *loc
           value=va_arg(arguments,unsigned long);
          else if(dwModify=='q')
           value=va_arg(arguments,unsigned long long);
-         else if(dwModify=='t')
-          value=va_arg(arguments, NSUInteger);
          else
           value=va_arg(arguments,unsigned int);
 

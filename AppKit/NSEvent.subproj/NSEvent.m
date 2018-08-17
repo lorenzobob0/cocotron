@@ -194,11 +194,6 @@ static NSTimer *_periodicTimer=nil;
 	return 0;
 }
 
--(NSTrackingArea *)trackingArea {
-	[NSException raise:NSInternalInconsistencyException format:@"No trackingArea in %@",[self class]];
-    return nil;
-}
-
 @end
 
 unsigned NSEventMaskFromType(NSEventType type){

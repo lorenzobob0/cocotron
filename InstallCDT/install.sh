@@ -22,6 +22,7 @@
 # Usage: install.sh <platform> <architecture> <compiler> <compiler-version> <osVersion>"
 # Windows i386, Linux i386, Solaris sparc
 
+com
 if [ ""$1"" = "" ];then
 	targetPlatform="Windows"
 else
@@ -117,9 +118,10 @@ binutilsVersion=2.21-20111025
 mingwRuntimeVersion=3.20
 mingwAPIVersion=3.17-2
 gmpVersion=4.2.3
+#gmpVersion=6.1.2
 mpfrVersion=2.3.2
 
-binutilsConfigureFlags=""
+binutilsConfigureFlags="--disable-werror"
 
 if [ $targetPlatform = "Windows" ];then
 	if [ $targetArchitecture = "i386" ];then
@@ -199,12 +201,12 @@ toolFolder=$productFolder/bin
 PATH="$resultFolder/bin:$PATH"
 
 downloadCompilerIfNeeded(){
-	$scriptResources/downloadFilesIfNeeded.sh $downloadFolder "http://cocotron-tools-gpl3.googlecode.com/files/$compiler-$compilerVersion$compilerVersionDate.tar.bz2 http://ftp.sunet.se/pub/gnu/gmp/gmp-$gmpVersion.tar.bz2 http://cocotron-binutils-2-21.googlecode.com/files/binutils-$binutilsVersion.tar.gz http://cocotron-tools-gpl3.googlecode.com/files/mpfr-$mpfrVersion.tar.bz2"
+	$scriptResources/downloadFilesIfNeeded.sh $downloadFolder "https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/cocotron-tools-gpl3/$compiler-$compilerVersion$compilerVersionDate.tar.bz2 https://ftp.gnu.org/pub/gnu/gmp/gmp-$gmpVersion.tar.bz2 http://cocotron-binutils-2-21.googlecode.com/files/binutils-$binutilsVersion.tar.gz https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/cocotron-tools-gpl3/mpfr-$mpfrVersion.tar.bz2"
 	$scriptResources/unarchiveFiles.sh $downloadFolder $sourceFolder "$compiler-$compilerVersion$compilerVersionDate binutils-$binutilsVersion gmp-$gmpVersion mpfr-$mpfrVersion"
 }
 
 createWindowsInterfaceIfNeeded(){
-	"$scriptResources/downloadFilesIfNeeded.sh" $downloadFolder "http://cocotron-tools-gpl3.googlecode.com/files/mingwrt-$mingwRuntimeVersion-mingw32-dev.tar.gz http://cocotron-tools-gpl3.googlecode.com/files/w32api-$mingwAPIVersion-mingw32-dev.tar.gz"
+	"$scriptResources/downloadFilesIfNeeded.sh" $downloadFolder "https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/cocotron-tools-gpl3/mingwrt-$mingwRuntimeVersion-mingw32-dev.tar.gz https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/cocotron-tools-gpl3/w32api-$mingwAPIVersion-mingw32-dev.tar.gz"
 
 	"$scriptResources/unarchiveFiles.sh" $downloadFolder $interfaceFolder "mingwrt-$mingwRuntimeVersion-mingw32-dev w32api-$mingwAPIVersion-mingw32-dev"
 }
@@ -278,7 +280,7 @@ if [ "$compiler" = "gcc" ]; then
 	mkdir -p $buildFolder/$compiler-$compilerVersion
 	pushd $buildFolder/$compiler-$compilerVersion
 
-	CFLAGS="-m${wordSize}" $sourceFolder/$compiler-$compilerVersion/configure -v --prefix="$resultFolder" --target=$compilerTarget \
+	CC="gcc -std=gnu89" CFLAGS="-m${wordSize}" $sourceFolder/$compiler-$compilerVersion/configure -v --prefix="$resultFolder" --target=$compilerTarget \
 		--with-gnu-as --with-gnu-ld --with-headers=$resultFolder/$compilerTarget/include \
 		--without-newlib --disable-multilib --disable-libssp --disable-nls --enable-languages="$enableLanguages" \
 		--with-gmp=$buildFolder/gmp-$gmpVersion --enable-decimal-float --with-mpfr=$resultFolder --enable-checking=release \
@@ -327,7 +329,7 @@ stripBinaries() {
 }
 
 "create"$targetPlatform"InterfaceIfNeeded"
-downloadCompilerIfNeeded
+#downloadCompilerIfNeeded
        
 /bin/echo -n "Copying the platform interface.  This could take a while.."
 if [ $targetPlatform != "Darwin" ]; then
@@ -335,13 +337,13 @@ if [ $targetPlatform != "Darwin" ]; then
 fi
 /bin/echo -n "done."
 
-configureAndInstall_binutils
+#configureAndInstall_binutils
 
-configureAndInstall_gmpAndMpfr
+#configureAndInstall_gmpAndMpfr
 
-configureAndInstall_compiler
+#configureAndInstall_compiler
 
-stripBinaries
+#stripBinaries
 
 /bin/echo -n "Creating specifications ..."
 "$scriptResources/createSpecifications.sh" $targetPlatform $targetArchitecture $productName $productVersion $compilerTarget "$installResources/Specifications"  $compiler $compilerVersion

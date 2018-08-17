@@ -19,7 +19,7 @@ NSString * const NSTableViewSelectionDidChangeNotification=@"NSTableViewSelectio
 NSString * const NSTableViewColumnDidMoveNotification=@"NSTableViewColumnDidMoveNotification";
 NSString * const NSTableViewColumnDidResizeNotification=@"NSTableViewColumnDidResizeNotification";
 
-const float NSTableViewDefaultRowHeight=16.0f;
+const int NSTableViewDefaultRowHeight=16.;
 
 
 @interface NSTableView(NSTableView_notifications)
@@ -195,7 +195,7 @@ const float NSTableViewDefaultRowHeight=16.0f;
 }
 
 -(NSView *)cornerView {
-    return [[_cornerView retain] autorelease];
+    return _cornerView;
 }
 
 -(float)rowHeight {
@@ -702,12 +702,9 @@ _dataSource);
 }
 
 -(void)editColumn:(int)column row:(int)row withEvent:(NSEvent *)event select:(BOOL)select {
-   if (_editingCell)
-      [self textDidEndEditing:nil];
-
    NSCell        *editingCell;
    NSTableColumn *editingColumn = [_tableColumns objectAtIndex:column];
-   NSInteger      numberOfRows  = [self numberOfRows];
+   NSInteger      numberOfRows=[self numberOfRows];
    
    // light sanity check; invalid columns caught above in objectAtIndex:
    if (row < 0 || row >= numberOfRows)
@@ -744,10 +741,8 @@ _dataSource);
       [_editingCell setBackgroundColor:_backgroundColor];
       
       NSText *oldEditor = _currentEditor;
-      [_currentEditor setDelegate:nil];
-      NSText *editor = [[self window] fieldEditor:YES forObject:self];
-      _currentEditor = [[_editingCell setUpFieldEditorAttributes: editor] retain];
-      [_currentEditor setDelegate:self];
+      NSText* editor =[[self window] fieldEditor:YES forObject:self];
+      _currentEditor=[[_editingCell setUpFieldEditorAttributes: editor] retain];
       [oldEditor release];
       
       if (select == YES)
@@ -857,7 +852,7 @@ _dataSource);
     for ( ; i <= last; i++)
      if ([_selectedRowIndexes containsIndex:i] != [newIndexes containsIndex:i]) {
       if (_editedRow == i && _editingCell != nil)
-       [self textDidEndEditing:nil];
+       [self abortEditing];
 
       [self setNeedsDisplay:YES];
       changed = YES;
@@ -932,14 +927,9 @@ _dataSource);
 // Deprecated in Mac OS X 10.3.
 -(void)selectRow:(int)row byExtendingSelection:(BOOL)extend  {
 
-   if (extend) {
-    NSUInteger startRow=[self selectedRow], endRow=row;
-    if (startRow>endRow) {
-     endRow=startRow;
-     startRow=row;
-    }
-    [self selectRowIndexes:[NSIndexSet indexSetWithIndexesInRange:NSMakeRange(startRow, endRow-startRow+1)] byExtendingSelection:NO];
-   } else
+   if (extend)
+    [self selectRowIndexes:[NSIndexSet indexSetWithIndexesInRange:NSMakeRange([self selectedRow], row)] byExtendingSelection:NO];
+   else
     [self selectRowIndexes:[NSIndexSet indexSetWithIndex:row] byExtendingSelection:NO];
 }
 
@@ -1040,7 +1030,7 @@ _dataSource);
 
     // if there's any editing going on, we'd better stop it.
     if (_editingCell != nil)
-     [self textDidEndEditing:nil];
+     [self abortEditing];
 
     if (numberOfRows > 0){
         size.width = [self rectOfRow:0].size.width;
@@ -1138,13 +1128,8 @@ _dataSource);
    NSCell *dataCell = [column dataCellForRow:row];
 
    [dataCell setControlView:self];
-    id value = [self dataSourceObjectValueForTableColumn:column row:row];
-    if ([dataCell isKindOfClass: [NSPopUpButtonCell class]]) {
-        [(NSPopUpButtonCell *)dataCell selectItemAtIndex: [value intValue]];
-    } else {
-        [dataCell setObjectValue: value];
-    }
-    
+   [dataCell setObjectValue:[self dataSourceObjectValueForTableColumn:column row:row]];
+   
    if ([dataCell respondsToSelector:@selector(setTextColor:)]) {
       if ([self isRowSelected:row] || [self isColumnSelected:columnNumber]){
        [(NSTextFieldCell *)dataCell setDrawsBackground:NO]; // so the selection shows properly, dont just set the color so custom background works
@@ -1236,48 +1221,42 @@ _dataSource);
 // Verified by comparing screen shots on Mac OS X 10.4.10.
 - (void)drawGridInClipRect:(NSRect)clipRect {
     NSBezierPath *line = [NSBezierPath bezierPath];
-    NSInteger i, n;
-    float     x, y;
+    NSInteger i;
 
     [_gridColor setStroke];
 
-    if ((_gridStyleMask & NSTableViewSolidVerticalGridLineMask) == NSTableViewSolidVerticalGridLineMask)
-    {
+    if ((_gridStyleMask & NSTableViewSolidVerticalGridLineMask) ==
+        NSTableViewSolidVerticalGridLineMask) {
         NSRange rangeOfColumns = [self columnsInRect:clipRect];
-        n = rangeOfColumns.location + rangeOfColumns.length;
-        for (i = rangeOfColumns.location; i < n; i++)
-        {
+
+        for (i = rangeOfColumns.location; i < rangeOfColumns.location + rangeOfColumns.length; i++) {
             NSRect columnRect = [self rectOfColumn:i];
-            x = columnRect.origin.x + columnRect.size.width + ((i < n-1) ? -0.5 : 0.5);
-            y = clipRect.origin.y;
-            [line moveToPoint:NSMakePoint(x, y)];
-            [line lineToPoint:NSMakePoint(x, y + clipRect.size.height)];
+            float xToDraw = columnRect.origin.x + columnRect.size.width - 0.5;
+
+            [line moveToPoint:NSMakePoint(xToDraw, clipRect.origin.y)];
+            [line lineToPoint:NSMakePoint(xToDraw, clipRect.origin.y + clipRect.size.height)];
         }
     }
 
-    if ((_gridStyleMask & NSTableViewSolidHorizontalGridLineMask) == NSTableViewSolidHorizontalGridLineMask)
-    {
-        NSRange rangeOfRows = [self rowsInRect:clipRect];
-        n = rangeOfRows.location + rangeOfRows.length;
-        y = -0.5;
-        for (i = rangeOfRows.location; i < n; i++)
-        {
-            NSRect rowRect = [self rectOfRow:i];
-            x = clipRect.origin.x;
-            y = rowRect.origin.y + rowRect.size.height - 0.5;
-            [line moveToPoint:NSMakePoint(x, y)];
-            [line lineToPoint:NSMakePoint(x + clipRect.size.width, y)];
-        }
+    if ((_gridStyleMask & NSTableViewSolidHorizontalGridLineMask) ==
+        NSTableViewSolidHorizontalGridLineMask) {
+          NSRange rangeOfRows = [self rowsInRect:clipRect];
+          float yToDraw = -0.5;
 
-        if (_standardRowHeight > 0.0)
-        {
-            while (y < clipRect.size.height)
-            {
-                y += _standardRowHeight + _intercellSpacing.height;
-                [line moveToPoint:NSMakePoint(clipRect.origin.x, y)];
-                [line lineToPoint:NSMakePoint(clipRect.origin.x + clipRect.size.width, y)];
-            }
-        }
+          for (i = rangeOfRows.location; i < rangeOfRows.location + rangeOfRows.length; i++) {
+              NSRect rowRect = [self rectOfRow:i];
+
+              yToDraw = rowRect.origin.y + rowRect.size.height - 0.5;
+              [line moveToPoint:NSMakePoint(clipRect.origin.x, yToDraw)];
+              [line lineToPoint:NSMakePoint(clipRect.origin.x + clipRect.size.width, yToDraw)];
+          }
+          if (_standardRowHeight > 0.) {
+              while (yToDraw < clipRect.size.height) {
+                  yToDraw += _standardRowHeight + _intercellSpacing.height;
+                  [line moveToPoint:NSMakePoint(clipRect.origin.x, yToDraw)];
+                  [line lineToPoint:NSMakePoint(clipRect.origin.x + clipRect.size.width, yToDraw)];
+              }
+          }
     }
 
     [line stroke];
@@ -1376,7 +1355,6 @@ _dataSource);
     }
 
     [self abortEditing];
-    [_window makeFirstResponder:nil];
 
 // NSReturnTextMovement has lousy behaviour , fix.
 // don't really need any of the text movement stuff, so we ignore it for now
@@ -1532,8 +1510,6 @@ _dataSource);
     _clickedRow = [self rowAtPoint:location];
     
     if (_clickedRow < 0) { // click beyond the end of the table
-        if (_editingCell != nil)
-            [self textDidEndEditing:nil];
         [self selectRowIndexes:[NSIndexSet indexSet] byExtendingSelection:NO];
         [_selectedColumns removeAllObjects];
         return;
@@ -1551,23 +1527,17 @@ _dataSource);
     [clickedCell setControlView:self];
     if ([clickedCell isKindOfClass:[NSButtonCell class]])
     {
-     [clickedCell setObjectValue:[self dataSourceObjectValueForTableColumn:clickedColumnObject row:_clickedRow]];
+       [clickedCell setObjectValue:[self dataSourceObjectValueForTableColumn:clickedColumnObject row:_clickedRow]];
      
      if([clickedCell trackMouse:event inRect:[self frameOfCellAtColumn:_clickedColumn row:_clickedRow] ofView:self untilMouseUp:YES]){
        [clickedCell setNextState];
-         NSNumber *value = nil;
-         if ([clickedCell isKindOfClass: [NSPopUpButtonCell class]]) {
-             value = [NSNumber numberWithInt: [(NSPopUpButtonCell *)clickedCell indexOfSelectedItem]];
-         } else {
-             value = [NSNumber numberWithInt:[clickedCell state]];
-         }
-         [self dataSourceSetObjectValue: value forTableColumn:clickedColumnObject row:_clickedRow];
+       [self dataSourceSetObjectValue:[NSNumber numberWithInt:[clickedCell state]] forTableColumn:clickedColumnObject row:_clickedRow];
       [self sendAction:[clickedCell action] to:[clickedCell target]];
      }
 
-     [self setNeedsDisplay:YES];
+       [self setNeedsDisplay:YES];
 
-     return;
+       return;
     }
 
     // NSLog(@"click in col %d row %d", _clickedColumn, _clickedRow);
@@ -1595,7 +1565,7 @@ _dataSource);
                     startRow = _clickedRow;
                 }
 
-                [self selectRowIndexes:[NSIndexSet indexSetWithIndexesInRange:NSMakeRange(startRow, endRow-startRow+1)] byExtendingSelection:NO];
+                [self selectRowIndexes:[NSIndexSet indexSetWithIndexesInRange:NSMakeRange(startRow, endRow)] byExtendingSelection:NO];
             }
             else
                 [self selectRowIndexes:[NSIndexSet indexSetWithIndex:_clickedRow] byExtendingSelection:NO];

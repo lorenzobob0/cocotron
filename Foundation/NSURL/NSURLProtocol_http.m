@@ -22,7 +22,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSCachedURLResponse.h>
 #import <Foundation/NSDebug.h>
 #import <Foundation/NSTimer.h>
-#import <Foundation/NSPathUtilities.h>
 #import <CFNetwork/CFNetwork.h>
 
 #include <string.h>
@@ -96,31 +95,6 @@ enum {
 	}
 }
 
-- (NSString *)normalizedHeaderWithName:(NSString *)theName
-{
-    // Normalize headers like Cocoa does: Make the first
-    // character and any character after '-' uppercase
-    // and the rest, lowercase.
-    if ([theName length]) {
-        char *name = strdup([theName UTF8String]);
-        int length = strlen(name);
-        int ii;
-        name[0] &= ~(1 << 5);
-        char c = name[0];
-        for(ii = 1; ii < length; c = name[ii++]) {
-            if (c == '-') {
-                name[ii] &= ~(1 << 5);
-            } else {
-                name[ii] |= 1 << 5;
-            }
-        }
-        return [[[NSString alloc] initWithBytesNoCopy:name length:length
-                                            encoding:NSUTF8StringEncoding
-                                        freeWhenDone:YES] autorelease];
-    }
-    return theName;
-}
-
 -(void)_headerKey {
    [_currentKey autorelease];
    _currentKey=[[NSString alloc] initWithCString:(char*)_bytes+_range.location length:_range.length];
@@ -129,31 +103,30 @@ enum {
 -(void)_headerValue {
    NSString *value=[NSString stringWithCString:(char*)_bytes+_range.location length:_range.length-1];
    NSString *oldValue;
-   NSString *normalized = [self normalizedHeaderWithName:_currentKey];
-   if((oldValue=[_headers objectForKey:normalized])!=nil)
+
+   if((oldValue=[_headers objectForKey:[_currentKey lowercaseString]])!=nil)
     value=[[oldValue stringByAppendingString:@" "] stringByAppendingString:value];
 
    [_rawHeaders setObject:value forKey:_currentKey];
-   [_headers setObject:value forKey:normalized];
+   [_headers setObject:value forKey:[_currentKey lowercaseString]];
 }
 
 -(void)_continuation {
    NSString *value=[NSString stringWithCString:(char*)_bytes+_range.location length:_range.length-1];
-   NSString *normalized = [self normalizedHeaderWithName:_currentKey];
-   NSString *oldValue=[_headers objectForKey:normalized];
+   NSString *oldValue=[_headers objectForKey:[_currentKey lowercaseString]];
 
    value=[[oldValue stringByAppendingString:@" "] stringByAppendingString:value];
 
    [_rawHeaders setObject:value forKey:_currentKey];
-   [_headers setObject:value forKey:normalized];
+   [_headers setObject:value forKey:[_currentKey lowercaseString]];
 }
 
 -(BOOL)contentIsChunked {
-   return [[_headers objectForKey:@"Transfer-Encoding"] isEqual:@"chunked"];
+   return [[_headers objectForKey:@"transfer-encoding"] isEqual:@"chunked"];
 }
 	
 -(NSInteger)contentLength {
-   return [[_headers objectForKey:@"Content-Length"] integerValue];
+   return [[_headers objectForKey:@"content-length"] integerValue];
 }
 
 -(void)didFinishLoading {
@@ -172,7 +145,7 @@ enum {
 
    [_client URLProtocol:self didLoadData:data];
    
-   if(_expectedContentLength > 0 && _totalContentReceived>=_expectedContentLength)
+   if(_totalContentReceived>=_expectedContentLength)
     [self didFinishLoading];
 }
 
@@ -386,7 +359,9 @@ NSLog(@"parse error %d",__LINE__);
       // fallthrough
 
      case STATE_entity_body:;
-      NSInteger pieceLength=_length-_range.location;      
+      NSInteger pieceLength=_length-_range.location;
+      
+      _totalContentReceived+=pieceLength;
       _range.length=pieceLength;
       
       [self didLoadData:[NSData dataWithBytes:_bytes+_range.location length:pieceLength]];
@@ -425,26 +400,15 @@ NSLog(@"parse error %d",__LINE__);
    [string appendFormat:@"%@ %@ HTTP/1.1\015\012",[_request HTTPMethod],path];
    [string appendFormat:@"Host: %@\015\012",host];
    [string appendFormat:@"Accept: */*\015\012"];
-
+   
    NSMutableDictionary *headers=[[[_request allHTTPHeaderFields] mutableCopy] autorelease];
    NSEnumerator *state=[headers keyEnumerator];
    NSString     *key;
-
-    BOOL contentLengthHeaderSetExplicitly = NO;
-    
+       
    while((key=[state nextObject])!=nil){     
     NSString *value=[headers objectForKey:key];
     [string appendFormat:@"%@: %@\015\012",key,value];
-       if ([key isEqualToString: @"Content-Length"]) {
-           contentLengthHeaderSetExplicitly = YES;
-       }
-   }
-
-    if (contentLengthHeaderSetExplicitly == NO && [[_request HTTPBody] length] > 0) {
-        // Many web-servers need to know the Content-Length before they're prepared to accept a POST.
-        [string appendFormat:@"Content-Length: %d\015\012", [[_request HTTPBody] length]];
-    }
-    
+}
 
    if(_cachedResponse!=nil){
     NSHTTPURLResponse *response=(NSHTTPURLResponse *)[_cachedResponse response];
@@ -476,6 +440,7 @@ NSLog(@"parse error %d",__LINE__);
 #endif
 }
    NSData *data=[string dataUsingEncoding:NSUTF8StringEncoding];
+
    [_outputQueue addObject:data];
    if([[_request HTTPBody] length]){
     [_outputQueue addObject:[_request HTTPBody]];
@@ -562,14 +527,8 @@ NSLog(@"parse error %d",__LINE__);
        [_outputQueue removeObjectAtIndex:0];
        _outputNextOffset=0;
 	}
-
+	
       [stream write:buffer maxLength:length];
-#ifdef DEBUG
-         length = MIN(length, 256);
-         NSData *dump = [NSData dataWithBytes: buffer length: length];
-         NSString *str = [[[NSString alloc] initWithData: dump encoding: NSUTF8StringEncoding] autorelease];
-         NSLog(@"sent: %@ ...", str);
-#endif
 }
 	}
 

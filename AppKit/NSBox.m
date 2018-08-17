@@ -205,16 +205,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 -(NSRect)titleRect {
    // Obtain the size the title cell prefers
-   NSSize size = [_titleCell cellSize]; 
+   NSSize size = [_titleCell cellSize];
    NSRect bounds=[self bounds];
    NSRect result=NSZeroRect;
    
    result.origin.x=10+TEXTGAP;
    result.size.height=ceil(size.height);
-    
-    //result.size.width=ceil(size.width); // // NSTextField cell must be bugged we get too low values for the width here
-    result.size.width = bounds.size.width - result.origin.x;  // use the whole width until the text field cell size is fixed
-    
+   result.size.width=ceil(size.width);
+
    switch(_titlePosition){
 
     case NSNoTitle:
@@ -243,7 +241,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
      result.origin.y=0;
      break;
    }
-
 
    return result;
 }
@@ -308,7 +305,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 	if (_boxType != NSBoxSeparator) {
 		// Separator are transparent except for drawing a line
 		[[NSColor controlColor] setFill];
-		NSRectFill(grooveRect);
+		NSRectFill(rect);
 	}
 
 	if (_boxType == NSBoxCustom){
@@ -408,11 +405,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 - (void)setFillColor:(NSColor *)value
 {
    [_customData setObject:value forKey:@"NSFillColor2"];
-}
-
--(void)updateCell:(NSCell *)cell
-{
-    [self setNeedsDisplay:YES];
 }
 
 @end

@@ -5,7 +5,6 @@
 //  Created by Sven Weidauer on 08.03.10.
 //  Copyright 2010 __MyCompanyName__. All rights reserved.
 //
-#ifdef PLATFORM_IS_POSIX
 
 #import "NSCondition_posix.h"
 
@@ -55,4 +54,3 @@
 }
 
 @end
-#endif

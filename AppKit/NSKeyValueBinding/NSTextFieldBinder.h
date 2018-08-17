@@ -12,8 +12,9 @@
 
 @class NSNotification;
 
-@interface _NSTextFieldBinder : _NSCachingBinder {
-    id _originalValue;
+@interface _NSTextFieldBinder : _NSCachingBinder 
+{
+  id _originalValue;
 }
 
 - (void)textDidBeginEditing:(NSNotification *)note;

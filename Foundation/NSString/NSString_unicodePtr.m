@@ -9,19 +9,19 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSRaise.h>
 #import <Foundation/NSStringHashing.h>
 #import <Foundation/NSRaiseException.h>
-#import <Foundation/NSStringUTF8.h>
 
 @implementation NSString_unicodePtr
 
 NSString *NSString_unicodePtrNewNoCopy(NSZone *zone,const unichar *unicode,NSUInteger length,BOOL freeWhenDone) {
-   NSString_unicodePtr *self=NSAllocateObject([NSString_unicodePtr class],0,zone);
+   NSString_unicodePtr *string;
 
-    if (self) {
-       self->_length=length;
-       self->_freeWhenDone=freeWhenDone;
-       self->_unicode=unicode;
-    }
-   return self;
+   string=NSAllocateObject([NSString_unicodePtr class],0,zone);
+
+   string->_length=length;
+   string->_freeWhenDone=freeWhenDone;
+   string->_unicode=unicode;
+
+   return string;
 }
 
 NSString *NSString_unicodePtrNew(NSZone *zone,const unichar *unicode,NSUInteger length) {
@@ -44,20 +44,6 @@ NSString *NSString_unicodePtrNew(NSZone *zone,const unichar *unicode,NSUInteger 
 
 -(NSUInteger)length {
    return _length;
-}
-
--(NSUInteger)lengthOfBytesUsingEncoding:(NSStringEncoding)encoding {
-    switch (encoding) {
-        case NSUTF8StringEncoding:
-            return NSConvertUTF16toUTF8(_unicode, _length,NULL);
-        case NSUnicodeStringEncoding:
-            return _length;
-
-        default:
-            NSUnimplementedMethod();
-            NSLog(@"For encoding: %i", encoding);
-            return 0;
-    }
 }
 
 -(unichar)characterAtIndex:(NSUInteger)location {

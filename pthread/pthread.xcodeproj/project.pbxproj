@@ -39,11 +39,8 @@
 				FE67837D143385CD0009A0A0 /* xcconfig */,
 				034768DFFF38A50411DB9C8B /* Products */,
 			);
-			indentWidth = 4;
 			name = pthread;
 			sourceTree = "<group>";
-			tabWidth = 4;
-			usesTabs = 0;
 		};
 		FE67837D143385CD0009A0A0 /* xcconfig */ = {
 			isa = PBXGroup;
@@ -92,7 +89,7 @@
 		0867D690FE84028FC02AAC07 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 0460;
+				LastUpgradeCheck = 0500;
 			};
 			buildConfigurationList = 1DEB918108733D990010E9CD /* Build configuration list for PBXProject "pthread" */;
 			compatibilityVersion = "Xcode 3.2";
@@ -119,6 +116,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = FE67838B143385CD0009A0A0 /* windows-i386-framework.xcconfig */;
 			buildSettings = {
+				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
 				INSTALL_PATH = /;
 				PRIVATE_HEADERS_FOLDER_PATH = /include;
 				PRODUCT_NAME = pthread;
@@ -130,6 +128,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = FE67838B143385CD0009A0A0 /* windows-i386-framework.xcconfig */;
 			buildSettings = {
+				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
 				INSTALL_PATH = /;
 				PRIVATE_HEADERS_FOLDER_PATH = /include;
 				PRODUCT_NAME = pthread;
@@ -140,6 +139,7 @@
 		1DEB918208733D990010E9CD /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ONLY_ACTIVE_ARCH = YES;
 			};
 			name = Debug;
 		};

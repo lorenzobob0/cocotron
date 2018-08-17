@@ -12,33 +12,34 @@
 */
 
 enum {
-    kNSCFTypeObject = 1,
-
-    kNSCFTypeAllocator,
-    kNSCFTypeArray,
-    kNSCFTypeAttributedString,
-    kNSCFTypeBag,
-    kNSCFTypeBinaryHeap,
-    kNSCFTypeBitVector,
-    kNSCFTypeBoolean,
-    kNSCFTypeCharacterSet,
-    kNSCFTypeData,
-    kNSCFTypeDate,
-    kNSCFTypeError,
-    kNSCFTypeDictionary,
-    kNSCFTypeNotificationCenter,
-    kNSCFTypeNumber,
-    kNSCFTypeSet,
-    kNSCFTypeSocket,
-    kNSCFTypeString,
-    kNSCFTypeUUID
+   kNSCFTypeObject = 1,
+   
+   kNSCFTypeAllocator,
+   kNSCFTypeArray,
+   kNSCFTypeAttributedString,
+   kNSCFTypeBag,
+   kNSCFTypeBinaryHeap,
+   kNSCFTypeBitVector,
+   kNSCFTypeBoolean,
+   kNSCFTypeCharacterSet,
+   kNSCFTypeData,
+   kNSCFTypeDate,
+   kNSCFTypeError,
+   kNSCFTypeDictionary,
+   kNSCFTypeNotificationCenter,
+   kNSCFTypeNumber,
+   kNSCFTypeSet,
+   kNSCFTypeSocket,
+   kNSCFTypeString,
+   kNSCFTypeUUID
 };
+
 
 #if __OBJC__
 
 @interface NSObject (CFTypeID)
 
-- (unsigned)_cfTypeID;
+- (unsigned) _cfTypeID;
 
 @end
 

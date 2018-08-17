@@ -14,7 +14,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSArray.h>
 #import <Foundation/NSConcreteDirectoryEnumerator.h>
 #import <Foundation/NSBundle.h>
-#import <Foundation/NSURL.h>
 #import <Foundation/NSPathUtilities.h>
 
 NSString * const NSFileType = @"NSFileType";
@@ -28,7 +27,6 @@ NSString * const NSFileTypeSocket = @"NSFileTypeSocket";
 NSString * const NSFileTypeUnknown = @"NSFileTypeUnknown";
 
 NSString * const NSFileSize = @"NSFileSize";
-NSString * const NSFileCreationDate = @"NSFileCreationDate";
 NSString * const NSFileModificationDate = @"NSFileModificationDate";
 NSString * const NSFileOwnerAccountName = @"NSFileOwnerAccountName";
 NSString * const NSFileGroupOwnerAccountName = @"NSFileGroupOwnerAccountName";
@@ -132,26 +130,6 @@ NSString * const NSFileSystemFreeSize=@"NSFileSystemFreeSize";
    return 0;
 }
 
--(BOOL)removeItemAtURL:(NSURL *)url error:(NSError **)error {
-    // Default to the AtPath implementation
-    return [self removeItemAtPath:[url path] error:error];
-}
-
--(BOOL)moveItemAtURL:(NSURL *)url toURL:(NSURL *)dstURL error:(NSError **)error {
-    // Default to the AtPath implementation
-    return [self moveItemAtPath:[url path] toPath:[dstURL path] error:error];
-}
-
--(BOOL)linkItemAtURL:(NSURL *)url toURL:(NSURL *)dstURL error:(NSError **)error {
-    // Default to the AtPath implementation
-    return [self linkItemAtPath:[url path] toPath:[dstURL path] error:error];
-}
-
--(BOOL)copyItemAtURL:(NSURL *)url toURL:(NSURL *)dstURL error:(NSError **)error {
-    // Default to the AtPath implementation
-    return [self copyItemAtPath:[url path] toPath:[dstURL path] error:error];
-}
-
 -(BOOL)setAttributes:(NSDictionary *)attributes ofItemAtPath:(NSString *)path error:(NSError **)error {
    NSUnimplementedMethod();
    return 0;
@@ -239,11 +217,6 @@ stringByAppendingPathComponent:[files objectAtIndex:x]] paths:paths];
 	return result;
 }
 
--(BOOL)createDirectoryAtURL:(NSURL *)url withIntermediateDirectories:(BOOL)intermediates attributes:(NSDictionary *)attributes error:(NSError **)error
-{
-    return [self createDirectoryAtPath:[url path] withIntermediateDirectories:intermediates attributes:attributes error:error];
-}
-
 -(BOOL)createSymbolicLinkAtPath:(NSString *)path pathContent:(NSString *)destination {
    NSInvalidAbstractInvocation();
    return NO;
@@ -310,7 +283,8 @@ stringByAppendingPathComponent:[files objectAtIndex:x]] paths:paths];
 }
 
 -(BOOL)changeFileAttributes:(NSDictionary *)attributes atPath:(NSString *)path {
-    return [self setAttributes:(NSDictionary *)attributes ofItemAtPath:(NSString *)path error:NULL];
+   NSInvalidAbstractInvocation();
+   return NO;
 }
 
 -(const char *)fileSystemRepresentationWithPath:(NSString *)path {

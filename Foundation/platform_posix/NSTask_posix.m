@@ -6,92 +6,56 @@ The above copyright notice and this permission notice shall be included in all c
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
-#ifdef PLATFORM_IS_POSIX
+// Original - David Young <daver@geeks.org>
 #import <Foundation/NSTask_posix.h>
 #import <Foundation/NSRunLoop-InputSource.h>
 #import <Foundation/NSPlatform_posix.h>
 #import <Foundation/NSFileHandle_posix.h>
-#import <Foundation/NSProcessInfo.h>
 #import <Foundation/Foundation.h>
-#import <Foundation/NSRaiseException.h>
 
 #include <unistd.h>
 #include <sys/ioctl.h>
-#include <sys/types.h>
-#include <sys/resource.h>
-#include <sys/wait.h>
 #include <signal.h>
 #include <errno.h>
 
-static NSMutableArray *_liveTasks = nil;
-static BOOL           _taskFinished = NO;
+// these cannot be static, subclasses need them :/
+NSMutableArray *_liveTasks = nil;
+NSPipe *_taskPipe = nil;
 
 @implementation NSTask_posix
 
-void waitForTaskChildProcess()
-{
-    NSTask_posix *task;
-    pid_t pid;
-    int status;
-    
-   // if (_taskFinished == YES) {
-   //     _taskFinished = NO;
-        while(YES) {
-            pid = wait3(&status, WNOHANG, NULL);
-            
-            if (pid < 0) {
-                if (errno == ECHILD) {
-                    break; // no child exists
-                }
-                else if (errno == EINTR) {
-                    continue;
-                }
-                
-                NSCLog("Invalid wait3 result [%s] in child signal handler", strerror(errno));
-            }
-            else if (pid == 0) {
-                //no child exited
-                break;
-            }
-            else {
-                @synchronized(_liveTasks) {
-                    NSEnumerator *taskEnumerator = [_liveTasks objectEnumerator];
-                    while (task = [taskEnumerator nextObject]) {
-                        if ([task processIdentifier] == pid) {
-                            if (WIFEXITED(status))
-                                [task setTerminationStatus:WEXITSTATUS(status)];
-                            else
-                                [task setTerminationStatus:-1];
-                            
-                            [task retain];
-                            [task taskFinished];
-                            
-                            [[NSNotificationCenter defaultCenter] postNotification:[NSNotification notificationWithName:NSTaskDidTerminateNotification object:task]];
-                            [task release];
-                            
-                        }
-                    }
-                }
-                
-            } 
-        }
-    //}
-}
+void childSignalHandler(int sig);
 
+// it is possible that this code could execute before _taskPipe is set up, in
+// which case we wind up send some messages to nil.
 void childSignalHandler(int sig) {
     if (sig == SIGCHLD) {
-        _taskFinished = YES;
+// FIX, this probably isnt safe to do from a signal handler
+       uint32_t quad = 32;
+       NSData *data = [NSData dataWithBytes:&quad length:sizeof(uint32_t)];
+       NSFileHandle *handle = [_taskPipe fileHandleForWriting];
+
+       [handle writeData:data];
     }
 }
 
++(void)registerNotification {
+    NSFileHandle *forReading;
+    forReading=[_taskPipe fileHandleForReading];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(signalPipeReadNotification:)
+                                                 name:NSFileHandleReadCompletionNotification object:forReading];
+    [forReading readInBackgroundAndNotifyForModes:[NSArray arrayWithObject:NSDefaultRunLoopMode]];
+
+}
+
++(void)signalPipeReadNotification:(NSNotification *)note {
+   [[_taskPipe fileHandleForReading] readInBackgroundAndNotifyForModes:[NSArray arrayWithObject:NSDefaultRunLoopMode]];
+}
+
 +(void)initialize {
-    if (self == [NSTask_posix class]) {
+    if(self==[NSTask_posix class]){
         _liveTasks=[[NSMutableArray alloc] init];
-        struct sigaction sa;        
-        sigaction (SIGCHLD, (struct sigaction *)0, &sa);
-        sa.sa_flags |= SA_RESTART;
-        sa.sa_handler = childSignalHandler;
-        sigaction (SIGCHLD, &sa, (struct sigaction *)0);
+        _taskPipe=[[NSPipe alloc] init];
     }
 }
 
@@ -99,61 +63,30 @@ void childSignalHandler(int sig) {
    return _processID;
 }
 
--(void)launch {
-    if ([self isRunning]) {
-        [NSException raise:NSInvalidArgumentException
-                    format:@"NSTask already launched"];   
-    }
-    
-    if (launchPath==nil)
-        [NSException raise:NSInvalidArgumentException
-                    format:@"NSTask launchPath is nil"];
-    
-    NSArray *array       = arguments;
-    NSInteger            i,count=[array count];
-    const char          *args[count+2];
-    const char          *path = [launchPath fileSystemRepresentation];
-    
-    if (array == nil)
-        array = [NSArray array];
 
-    args[0]=path;
-    for(i=0;i<count;i++)
-        args[i+1]=(char *)[[[array objectAtIndex:i] description] cString];
-    args[count+1]=NULL;
-    
-    NSDictionary *env;
-    if(environment == nil) {
-        env = [[NSProcessInfo processInfo] environment];
+- (void)launch
+{
+    if (launchPath == nil) {
+        [NSException raise:NSInvalidArgumentException format:@"NSTask launchPath is nil"];
     }
-    else {
-        env = environment;
-    }
-    const char *cenv[[env count] + 1];
-    
-    NSString *key;
-    i = 0;
-    
-    for (key in env) {
-        id          value = [env objectForKey:key];
-        NSString    *entry;
-        if (value) {
-            entry = [NSString stringWithFormat:@"%@=%@", key, value];
+
+    _processID = fork();
+    if (_processID == 0) {  // child process
+        NSMutableArray *array = [[arguments mutableCopy] autorelease];
+        const char *path = [launchPath fileSystemRepresentation];
+        NSInteger count = [array count];
+        const char *args[count + 2];
+
+        if (array == nil) {
+            array = [NSMutableArray array];
         }
-        else {
-            entry = [NSString stringWithFormat:@"%@=", key];
-        }      
-        
-        cenv[i] = [entry cString];
-        i++;
-    }
-    
-    cenv[[env count]] = NULL;
-    
-    const char *pwd = [currentDirectoryPath fileSystemRepresentation];
-    
-    _processID = fork(); 
-    if (_processID == 0) {  // child process               
+
+        args[0] = path;
+        for (int i=0; i < count; i++) {
+            args[i + 1] = (char *)[[[array objectAtIndex:i] description] cString];
+        }
+        args[count + 1] = NULL;
+
         if ([standardInput isKindOfClass:[NSFileHandle class]] || [standardInput isKindOfClass:[NSPipe class]]) {
             int fd = -1;
 
@@ -164,9 +97,6 @@ void childSignalHandler(int sig) {
             }
             dup2(fd, STDIN_FILENO);
         }
-        else {
-            close(STDIN_FILENO);
-        }
         if ([standardOutput isKindOfClass:[NSFileHandle class]] || [standardOutput isKindOfClass:[NSPipe class]]) {
             int fd = -1;
 
@@ -176,9 +106,7 @@ void childSignalHandler(int sig) {
                 fd = [(NSFileHandle_posix *)[standardOutput fileHandleForWriting] fileDescriptor];
             }
             dup2(fd, STDOUT_FILENO);
-        }
-        else {
-            close(STDOUT_FILENO);
+
         }
         if ([standardError isKindOfClass:[NSFileHandle class]] || [standardError isKindOfClass:[NSPipe class]]) {
             int fd = -1;
@@ -190,24 +118,23 @@ void childSignalHandler(int sig) {
             }
             dup2(fd, STDERR_FILENO);
         }
-        else {
-            close(STDERR_FILENO);
-        }
-        
-        for (i = 3; i < getdtablesize(); i++) {
+
+        //close all other file handles..see FD_CLOEXEC
+        for (int i = 3; i < 256; i++) {
             close(i);
         }
-        
-        for (i = 0; i < 32; i++){
-            signal(i, SIG_DFL);
+
+        if (chdir([currentDirectoryPath fileSystemRepresentation]) == 0) {
+            execve(path, (char**)args, NSPlatform_environ());
+            [NSException raise:NSInvalidArgumentException
+                    format:@"NSTask: execve(%s) returned: %s", path, strerror(errno)];
+        } else {
+            [NSException raise: NSGenericException format: @"chdir(%s) failed: (%d) %s",
+                    [currentDirectoryPath fileSystemRepresentation], errno, strerror(errno)];
         }
-        
-        chdir(pwd);
-               
-        execve(path, (char**)args, (char**)cenv);
-        exit(-1);
-    }
-    else if (_processID != -1) {
+    } else if (_processID != -1) {
+        isRunning = YES;
+
         @synchronized(_liveTasks) {
             [_liveTasks addObject:self];
         }
@@ -228,21 +155,6 @@ void childSignalHandler(int sig) {
 }
 
 
--(BOOL)isRunning
-{
-    if (_processID != 0) {
-        if (kill(_processID, 0) == 0) {
-            return YES;
-        }
-        else {
-            return NO;
-        }
-    }
-    else {
-        return  NO;
-    }
-}
-
 -(void)terminate {
    kill(_processID, SIGTERM);
     @synchronized(_liveTasks) {
@@ -253,12 +165,11 @@ void childSignalHandler(int sig) {
 -(int)terminationStatus { return _terminationStatus; }			// OSX specs this
 -(void)setTerminationStatus:(int)terminationStatus { _terminationStatus = terminationStatus; }
 
--(void)taskFinished {    
+-(void)taskFinished {
+   isRunning = NO;
     @synchronized(_liveTasks) {
         [_liveTasks removeObject:self];
     }
 }
 
 @end
-#endif
-

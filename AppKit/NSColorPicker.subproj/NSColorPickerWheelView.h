@@ -1,14 +1,15 @@
 
 #import <AppKit/NSView.h>
 
+
 @interface NSColorPickerWheelView : NSView {
 
-    IBOutlet id _delegate;
+	IBOutlet id _delegate;
 
-    NSPoint _handleLocation;
-    CGFloat _hueValue; // Varies
-    CGFloat _saturationValue;
-    CGFloat _brightnessValue;
+	NSPoint		_handleLocation;
+	CGFloat		_hueValue; // Varies 
+	CGFloat		_saturationValue;
+	CGFloat		_brightnessValue;
 }
 
 - (void)setHue:(CGFloat)hue; // 0-359
@@ -24,8 +25,9 @@
 
 @end
 
+
 @interface NSObject (NSColorPickerWheelViewDelegate)
 
-- (void)colorPickerWheelView:(NSColorPickerWheelView *)view didSelectHue:(CGFloat)hue saturation:(CGFloat)saturation andBrightness:(CGFloat)brightness;
+- (void)colorPickerWheelView:(NSColorPickerWheelView*)view didSelectHue:(CGFloat)hue saturation:(CGFloat)saturation andBrightness:(CGFloat)brightness;
 
 @end

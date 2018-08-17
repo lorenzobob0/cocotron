@@ -13,7 +13,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/NSStringDrawer.h>
 #import <AppKit/NSTextAttachment.h>
 #import <AppKit/NSRichTextReader.h>
-#import <AppKit/NSRichTextWriter.h>
 #import <AppKit/NSRaise.h>
 
 NSString * const NSFontAttributeName=@"NSFontAttributeName"; 
@@ -81,19 +80,15 @@ NSString * const NSSpellingStateAttributeName=@"NSSpellingStateAttributeName"; /
 -initWithPath:(NSString *)path documentAttributes:(NSDictionary **)attributes {
    NSAttributedString *string=[NSRichTextReader attributedStringWithContentsOfFile:path];
    if(string==nil){
-    [self release];
+    [self dealloc];
     return nil;
    }
    return [self initWithAttributedString:string];
 }
 
 -initWithRTF:(NSData *)rtf documentAttributes:(NSDictionary **)attributes {
-    NSAttributedString *string=[NSRichTextReader attributedStringWithData:rtf];
-    if(string==nil){
-        [self release];
-        return nil;
-    }
-    return [self initWithAttributedString:string];
+   NSUnimplementedMethod();
+   return nil;
 }
 
 -initWithRTFD:(NSData *)rtfd documentAttributes:(NSDictionary **)attributes {
@@ -287,11 +282,13 @@ NSString * const NSSpellingStateAttributeName=@"NSSpellingStateAttributeName"; /
 }
 
 -(NSData *)RTFDFromRange:(NSRange)range documentAttributes:(NSDictionary *)attributes {
-    return [NSRichTextWriter dataWithAttributedString: self range:range];
+   NSUnimplementedMethod();
+   return nil;
 }
 
 -(NSData *)RTFFromRange:(NSRange)range documentAttributes:(NSDictionary *)attributes {
-    return [NSRichTextWriter dataWithAttributedString: self range:range];
+   NSUnimplementedMethod();
+   return nil;
 }
 
 

@@ -40,10 +40,8 @@ NSString * const NSStreamSocketSecurityLevelNegotiatedSSL=@"kCFStreamSocketSecur
     return;
    }
 
-   if (inputStreamp)
-    *inputStreamp=input=[[[NSInputStream_socket alloc] initWithSocket:socket streamStatus:NSStreamStatusNotOpen] autorelease];
-   if (outputStreamp)
-    *outputStreamp=output=[[[NSOutputStream_socket alloc] initWithSocket:socket streamStatus:NSStreamStatusNotOpen] autorelease];
+   *inputStreamp=input=[[[NSInputStream_socket alloc] initWithSocket:socket streamStatus:NSStreamStatusNotOpen] autorelease];
+   *outputStreamp=output=[[[NSOutputStream_socket alloc] initWithSocket:socket streamStatus:NSStreamStatusNotOpen] autorelease];
 }
 
 -delegate {

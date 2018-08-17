@@ -69,6 +69,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    for (i = 0; i < count; i++) {
       [newObjects[i] release];
    }
+   
    return self;
 }
 
@@ -383,16 +384,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 
 -firstObjectCommonWithArray:(NSArray *)array {
-   if ([array count]) { 
-    NSInteger i,count=[self count];
+   NSInteger i,count=[self count];
 
-    for(i=0;i<count;i++){
-     id object=[self objectAtIndex:i];
+   for(i=0;i<count;i++){
+    id object=[self objectAtIndex:i];
 
-     if([array indexOfObject:object]!=NSNotFound)
-      return object;
-    }
+    if([array indexOfObject:object]!=NSNotFound)
+     return object;
    }
+
    return nil;
 }
 

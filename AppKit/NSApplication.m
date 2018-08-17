@@ -71,6 +71,12 @@ NSString * const NSApplicationDidChangeScreenParametersNotification=@"NSApplicat
 
 id NSApp=nil;
 
++(void)initialize {
+   if(self==[NSApplication class]){
+    [NSClassFromString(@"Win32RunningCopyPipe") performSelector:@selector(startRunningCopyPipe)];
+   }
+}
+
 +(NSApplication *)sharedApplication {
 
    if(NSApp==nil){
@@ -278,25 +284,6 @@ id NSApp=nil;
    NSUnimplementedMethod();
 }
 
--(void)unregisterDelegate {
-    if([_delegate respondsToSelector:@selector(applicationWillFinishLaunching:)]){
-        [[NSNotificationCenter defaultCenter] removeObserver:_delegate
-                                                     name:NSApplicationWillFinishLaunchingNotification object:self];
-    }
-    if([_delegate respondsToSelector:@selector(applicationDidFinishLaunching:)]){
-        [[NSNotificationCenter defaultCenter] removeObserver:_delegate
-                                                     name:NSApplicationDidFinishLaunchingNotification object:self];
-    }
-    if([_delegate respondsToSelector:@selector(applicationDidBecomeActive:)]){
-        [[NSNotificationCenter defaultCenter] removeObserver:_delegate
-                                                     name: NSApplicationDidBecomeActiveNotification object:self];
-    }
-    if([_delegate respondsToSelector:@selector(applicationWillTerminate:)]){
-        [[NSNotificationCenter defaultCenter] removeObserver:_delegate
-                                                     name: NSApplicationWillTerminateNotification object:self];
-    }
-}
-
 -(void)registerDelegate {
     if([_delegate respondsToSelector:@selector(applicationWillFinishLaunching:)]){
      [[NSNotificationCenter defaultCenter] addObserver:_delegate
@@ -322,11 +309,8 @@ id NSApp=nil;
 }
 
 -(void)setDelegate:delegate {
-    if (delegate != _delegate) {
-        [self unregisterDelegate];
-        _delegate=delegate;
-        [self registerDelegate];
-    }
+   _delegate=delegate;
+   [self registerDelegate];
 }
 
 -(void)setMainMenu:(NSMenu *)menu {
@@ -424,40 +408,6 @@ id NSApp=nil;
 #endif
 }
 
--(BOOL)openFiles
-{
-   BOOL opened = NO;
-   if(_delegate) {
-      id nsOpen = [[NSUserDefaults standardUserDefaults] objectForKey:@"NSOpen"];
-      NSArray *openFiles = nil;
-      if ([nsOpen isKindOfClass:[NSString class]] && [nsOpen length]) {
-         openFiles = [NSArray arrayWithObject:nsOpen];
-      } else if ([nsOpen isKindOfClass:[NSArray class]]) {
-         openFiles = nsOpen;
-      }
-      if ([openFiles count] > 0) {
-         if ([openFiles count] == 1 && [_delegate respondsToSelector: @selector(application:openFile:)]) {
-
-            if([_delegate application: self openFile: [openFiles lastObject]]) {
-               opened = YES;
-            }
-         } else {
-            if ([_delegate respondsToSelector: @selector(application:openFiles:)]) {
-               [_delegate application: self openFiles: openFiles];
-               opened = YES;
-
-            } else if ([_delegate respondsToSelector: @selector(application:openFile:)]) {
-               for (NSString *aFile in openFiles) {
-                  opened |= [_delegate application: self openFile: aFile];
-               }
-            }
-         }
-      }
-      [[NSUserDefaults standardUserDefaults] removeObjectForKey:@"NSOpen"];
-   }
-   return opened;
-}
-
 -(void)finishLaunching {
    NSAutoreleasePool *pool=[NSAutoreleasePool new];
    BOOL               needsUntitled=YES;
@@ -490,9 +440,15 @@ id NSApp=nil;
 		objectForKey:@"CFBundleDocumentTypes"];
    if([types count] > 0)
        controller = [NSDocumentController sharedDocumentController];
+   
+   if(_delegate && [_delegate respondsToSelector: @selector(application:openFile:)]) {
+       NSString *openFile = [[NSUserDefaults standardUserDefaults]
+				stringForKey:@"NSOpen"];
 
-   if ([self openFiles]) {
-      needsUntitled = NO;
+       if([openFile length] > 0) {
+	   if([_delegate application: self openFile: openFile])
+	       needsUntitled = NO;
+       }
    }
 
    if(needsUntitled && _delegate &&
@@ -530,14 +486,11 @@ id NSApp=nil;
 
     if([check retainCount]==1){
     
-        // Use the setters here - give a chance to the observer to notice something happened
-        if(check==_keyWindow) {
-            [self _setKeyWindow:nil];
-        }
+     if(check==_keyWindow)
+      _keyWindow=nil;
       
-        if(check==_mainWindow) {
-            [self _setMainWindow:nil];
-        }
+     if(check==_mainWindow)
+      _mainWindow=nil;
       
      [_windows removeObjectAtIndex:count];
    }
@@ -603,16 +556,12 @@ id NSApp=nil;
 }
 
 -(BOOL)_performKeyEquivalent:(NSEvent *)event {
-    if (event.charactersIgnoringModifiers.length > 0) {
-    /* order is important here, views may want to handle the event before menu*/
-
-        if([[self keyWindow] performKeyEquivalent:event])
-            return YES;
-        if([[self mainWindow] performKeyEquivalent:event])
-            return YES;
-        if([[self mainMenu] performKeyEquivalent:event])
-            return YES;
-    }
+   if([[self mainMenu] performKeyEquivalent:event])
+    return YES;
+   if([[self keyWindow] performKeyEquivalent:event])
+    return YES;
+   if([[self mainWindow] performKeyEquivalent:event])
+    return YES;
 // documentation says to send it to all windows
    return NO;
 }
@@ -892,6 +841,7 @@ id NSApp=nil;
         [pool release];
     }
     
+
     
     return [session stopCode];
 }
@@ -959,14 +909,6 @@ id NSApp=nil;
     NSSheetContext *context=[NSSheetContext sheetContextWithSheet:sheet modalDelegate:modalDelegate didEndSelector:didEndSelector contextInfo:contextInfo frame:[sheet frame]];
 
 	if ([[NSUserDefaults standardUserDefaults] boolForKey: @"NSRunAllSheetsAsModalPanel"]) {
-        // Center the sheet on the window
-        NSPoint windowCenter = NSMakePoint(NSMidX([window frame]), NSMidY([window frame]));
-        NSPoint sheetCenter = NSMakePoint(NSMidX([sheet frame]), NSMidY([sheet frame]));
-        NSPoint origin = [sheet frame].origin;
-        origin.x += windowCenter.x - sheetCenter.x;
-        origin.y += windowCenter.y - sheetCenter.y;
-        [sheet setFrameOrigin:origin];
-        
 		[sheet _setSheetContext: context];
 		[sheet setLevel: NSModalPanelWindowLevel];
 		NSModalSession session = [self beginModalSessionForWindow: sheet];
@@ -1310,68 +1252,50 @@ standardAboutPanel] retain];
 	   [[NSNotificationCenter defaultCenter] postNotificationName:NSApplicationDidResignActiveNotification object:self];
    }
 }
-
-//private method called when the application is reopened
--(void)_reopen {
-    BOOL doReopen=YES;
-    if ([_delegate respondsToSelector:@selector(applicationShouldHandleReopen:hasVisibleWindows:)])
-        doReopen=[_delegate applicationShouldHandleReopen:self hasVisibleWindows:!_isHidden];
-    if(!doReopen)
-        return;
-    if(_isHidden)
-        [self unhide:nil];
+  //private method called when the application is reopened
+-(void)_reopen
+{
+	BOOL doReopen=YES;
+	if ([_delegate respondsToSelector:@selector(applicationShouldHandleReopen:hasVisibleWindows:)])
+	doReopen=	[_delegate applicationShouldHandleReopen:self hasVisibleWindows:!_isHidden];
+	if(!doReopen) return;
+	if(_isHidden) [self unhide:nil];
+	
 }
 
 @end
 
-
 int NSApplicationMain(int argc, const char *argv[]) {
-    __NSInitializeProcess(argc, argv);
-
+   NSInitializeProcess(argc,(const char **)argv);
+   {
     NSAutoreleasePool *pool=[NSAutoreleasePool new];
     NSBundle *bundle=[NSBundle mainBundle];
     Class     class=[bundle principalClass];
     NSString *nibFile=[[bundle infoDictionary] objectForKey:@"NSMainNibFile"];
 
-    if (argc > 1) {
-        NSMutableArray *arguments = [NSMutableArray arrayWithCapacity:argc-1];
-        for (int i = 1; i < argc; i++)
-            if (argv[i][0] != '-')
-                [arguments addObject:[NSString stringWithUTF8String:argv[i]]];
-            else if (argv[i][1] == '-' && argv[i][2] == '\0')
-                break;
-            else // (argv[i][0] == '-' && argv[i] != "--")
-                if (*(int64_t *)argv[i] != *(int64_t *)"-NSOpen")
-                    i++;
-
-        if (argc = [arguments count])
-            [[NSUserDefaults standardUserDefaults] setObject:((argc == 1) ? [arguments lastObject] : arguments) forKey:@"NSOpen"];
-    }
-
-    [NSClassFromString(@"Win32RunningCopyPipe") performSelector:@selector(startRunningCopyPipe)];
-
     if(class==Nil)
-        class=[NSApplication class];
+     class=[NSApplication class];
 
     [class sharedApplication];
 
     nibFile=[nibFile stringByDeletingPathExtension];
 
     if(![NSBundle loadNibNamed:nibFile owner:NSApp])
-        NSLog(@"Unable to load main nib file %@",nibFile);
+     NSLog(@"Unable to load main nib file %@",nibFile);
 
     [pool release];
 
     [NSApp run];
-
-    return 0;
+   }
+   return 0;
 }
 
 void NSUpdateDynamicServices(void) {
-    NSUnimplementedFunction();
+   NSUnimplementedFunction();
 }
 
 BOOL NSPerformService(NSString *itemName, NSPasteboard *pasteboard) {
-    NSUnimplementedFunction();
-    return NO;
+   NSUnimplementedFunction();
+   return NO;
 }
+

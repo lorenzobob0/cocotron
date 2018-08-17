@@ -140,11 +140,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 
--(void)dirtyRect:(CGRect)rect
-{
-    // Default does nothing - that can be used for optimized redraws
-}
-
 -(NSPoint)mouseLocationOutsideOfEventStream {
    O2InvalidAbstractInvocation();
    return NSZeroPoint;
@@ -171,5 +166,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 -(void)flushCGLContext:(CGLContextObj)cglContext {
 }
+
 
 @end

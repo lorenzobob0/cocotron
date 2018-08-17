@@ -12,15 +12,13 @@ typedef int64_t  longDateTime64;
 
 O2TTFDecoderRef O2TTFDecoderCreate(O2DataProviderRef dataProvider) {
    O2TTFDecoderRef self=NSAllocateObject([O2TTFDecoder class],0,NULL);
-
-    if (self) {
-       self->_dataProvider=O2DataProviderRetain(dataProvider);
-       self->_data=O2DataProviderCopyData(dataProvider);
-       self->_bytes=CFDataGetBytePtr(self->_data);
-       self->_length=CFDataGetLength(self->_data);
-       self->_position=0;
-    }
-    
+   
+   self->_dataProvider=O2DataProviderRetain(dataProvider);
+   self->_data=O2DataProviderCopyData(dataProvider);
+   self->_bytes=CFDataGetBytePtr(self->_data);
+   self->_length=CFDataGetLength(self->_data);
+   self->_position=0;
+   
    return self;
 }
 

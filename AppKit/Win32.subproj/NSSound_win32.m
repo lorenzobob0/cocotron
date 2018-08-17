@@ -12,7 +12,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSPathUtilities.h>
 #import <Foundation/NSEnumerator.h>
 #import <Foundation/NSArray.h>
-#import <Foundation/NSURL.h>
 #import <AppKit/NSRaise.h>
 #import <windows.h>
 
@@ -25,10 +24,6 @@ static unsigned int uniquenum = 1;
 @implementation NSSound(win32)
 
 +allocWithZone:(NSZone *)zone {
-    Class directShow=NSClassFromString(@"NSSound_DirectShow");
-    if(directShow!=Nil)
-        return NSAllocateObject(directShow,0,NULL);
-    
    return NSAllocateObject([NSSound_win32 class],0,NULL);
 }
 
@@ -42,11 +37,7 @@ static unsigned int uniquenum = 1;
 
 @implementation NSSound_win32
 
-- (id)initWithContentsOfURL:(NSURL *)url byReference:(BOOL)byReference {
-	return [self initWithContentsOfFile:[url path] byReference:byReference];
-}
-
-- (id)initWithContentsOfFile:(NSString *)path byReference:(BOOL)byReference {
+-initWithContentsOfFile:(NSString *)path byReference:(BOOL)byReference {
 	if ((self = [super initWithContentsOfFile:path byReference:byReference]))
 	{
 		_soundFilePath = [path copy];
@@ -119,7 +110,6 @@ static unsigned int uniquenum = 1;
  	 NSString *stopStr = [NSString stringWithFormat:@"close %i", _handle];
 	 mciSendString([stopStr UTF8String], NULL, 0, 0);
     }
-    [_soundFilePath release];
 	[super dealloc];
 }
 

@@ -7,10 +7,6 @@
 #import <Onyx2D/O2MutablePath.h>
 #import <AppKit/NSRaise.h>
 
-// Define that if we want to preserve the system pref for font sizes
-// That's usually a bad idea if the UI can't automatically adapt to a random control sizes
-//#define USE_WIN_PREFS_FONTSIZE
-
 #define MAXUNICHAR 0xFFFF
 
 @interface KTFont(KTFont_gdi)
@@ -52,12 +48,21 @@ static inline CGGlyphMetrics *glyphInfoForGlyph(KTFont_gdi *self,CGGlyph glyph){
 }
 
 -(float)pointSize {
-    return [_font nativeSizeForSize: _size];
+   if(!_useMacMetrics)
+    return _size;
+   else {
+    if (_size <= 10.0)
+       return _size;
+    else if (_size < 20.0)
+       return _size/(1.0 + 0.2*sqrtf(0.0390625*(_size - 10.0)));
+    else
+       return _size/1.125;
+   }
 }
 
 -(Win32Font *)createGDIFontSelectedInDC:(HDC)dc {
-   int        height=([self pointSize]*FONT_DPI(_dc))/72.;
-   Win32Font *result=[[Win32Font alloc] initWithName:(NSString *)_name height:-height antialias:NO];
+   int        height=([self pointSize]*GetDeviceCaps(dc,LOGPIXELSY))/72.0;
+   Win32Font *result=[[Win32Font alloc] initWithName:(NSString *)_name height:height antialias:NO];
    
    SelectObject(dc,[result fontHandle]);
    return result;
@@ -112,9 +117,9 @@ static inline CGGlyphMetrics *glyphInfoForGlyph(KTFont_gdi *self,CGGlyph glyph){
     characters[i]=range.location+i;
 
 // GetGlyphIndicesW is around twice as fast as GetCharacterPlacementW, but only available on Win2k/XP
-    if(getGlyphIndices!=NULL) {
+   if(getGlyphIndices!=NULL)
     getGlyphIndices(_dc,characters,range.length,glyphs,0);
-    }  else {
+   else {
     GCP_RESULTSW results;
 
     results.lStructSize=sizeof(GCP_RESULTS);
@@ -154,7 +159,6 @@ static inline CGGlyphMetrics *glyphInfoForGlyph(KTFont_gdi *self,CGGlyph glyph){
     
     _glyphRangeTable->characters[glyph]=range.location+i;
    }
-
 }
 
 -(void)fetchGlyphRanges {
@@ -164,33 +168,21 @@ static inline CGGlyphMetrics *glyphInfoForGlyph(KTFont_gdi *self,CGGlyph glyph){
 
 -(void)fetchGlyphKerning {
    Win32Font  *gdiFont=[self selectFontInDefaultDC];
-    
-    // We need to use the font at Em size to get precise (or just correct for font) metrics
-    LOGFONT logFont;
-    GetObject([gdiFont fontHandle],sizeof(logFont),&logFont);
-    logFont.lfHeight=-_unitsPerEm;
-    logFont.lfWidth=0;
-    
-    HFONT fontHandle=CreateFontIndirect(&logFont);
-    SelectObject(_dc,fontHandle);
-
    int         i,numberOfPairs=GetKerningPairs(_dc,0,NULL);
    KERNINGPAIR pairs[numberOfPairs];
 
    GetKerningPairsW(_dc,numberOfPairs,pairs);
    
-    float  scale = [self pointSize]/_unitsPerEm;
+   for(i=0;i<numberOfPairs;i++){
+    unichar previousCharacter=pairs[i].wFirst;
+    unichar currentCharacter=pairs[i].wSecond;
+    float   xoffset=pairs[i].iKernAmount;
+    NSGlyph previous=glyphForCharacter(self,previousCharacter);
+    NSGlyph current=glyphForCharacter(self,currentCharacter);
 
-    for(i=0;i<numberOfPairs;i++){
     if(pairs[i].iKernAmount==0)
      continue;
 
-       unichar previousCharacter=pairs[i].wFirst;
-       unichar currentCharacter=pairs[i].wSecond;
-       float   xoffset=pairs[i].iKernAmount;
-       NSGlyph previous=glyphForCharacter(self,previousCharacter);
-       NSGlyph current=glyphForCharacter(self,currentCharacter);
-       
     if(current==NSNullGlyph)
      ;//NSLog(@"unable to generate kern pair 0x%04X 0x%04X %f",previousCharacter,currentCharacter,xoffset);
     else {
@@ -208,15 +200,11 @@ static inline CGGlyphMetrics *glyphInfoForGlyph(KTFont_gdi *self,CGGlyph glyph){
                sizeof(CGKerningOffset)*(index+1));
 
       info->kerningOffsets[index].previous=previous;
-      info->kerningOffsets[index].xoffset=xoffset*scale;
-         if (_useMacMetrics == NO) {
-             info->kerningOffsets[index].xoffset = roundf(info->kerningOffsets[index].xoffset);
-         }
+      info->kerningOffsets[index].xoffset=xoffset;
       info->numberOfKerningOffsets++;
      }
     }
    }
-    DeleteObject(fontHandle);
 }
 
 -(void)fetchGlyphInfo {
@@ -239,17 +227,7 @@ static inline CGGlyphMetrics *fetchGlyphInfoIfNeeded(KTFont_gdi *self,CGGlyph gl
 }
 
 -(void)fetchAdvancementsForGlyph:(CGGlyph)glyph {
-    Win32Font *gdiFont=[self selectFontInDefaultDC];
-    
-    // We need to use the font at Em size to get precise (or just correct for font) metrics
-    LOGFONT logFont;
-    GetObject([gdiFont fontHandle],sizeof(logFont),&logFont);
-    logFont.lfHeight=-_unitsPerEm;
-    logFont.lfWidth=0;
-    
-    HFONT fontHandle=CreateFontIndirect(&logFont);
-    SelectObject(_dc,fontHandle);
-
+   Win32Font *gdiFont=[self selectFontInDefaultDC];
    ABCFLOAT *abc;
    int       i,max;
 
@@ -267,8 +245,6 @@ static inline CGGlyphMetrics *fetchGlyphInfoIfNeeded(KTFont_gdi *self,CGGlyph gl
     info->advanceA=0;
     info->advanceB=0;
     info->advanceC=0;
-       
-       DeleteObject(fontHandle);
     return;
    }
 
@@ -277,24 +253,20 @@ static inline CGGlyphMetrics *fetchGlyphInfoIfNeeded(KTFont_gdi *self,CGGlyph gl
    if(!GetCharABCWidthsFloatW(_dc,0,max-1,abc))
     NSLog(@"GetCharABCWidthsFloat failed");
    else {
-       float  scale = _size/_unitsPerEm;
-       scale *= (FONT_DPI(_dc)/96.);
-
-       for(i=0;i<max;i++){
+    for(i=0;i<max;i++){
      NSGlyph      glyph=glyphForCharacter(self,i);
      CGGlyphMetrics *info=glyphInfoForGlyph(self,glyph);
 
      if(info==NULL)
       NSLog(@"no info for glyph %d",glyph);
      else {
-         info->hasAdvancement=YES;
-         info->advanceA=abc[i].abcfA*scale;
-         info->advanceB=abc[i].abcfB*scale;
-         info->advanceC=abc[i].abcfC*scale;
+      info->hasAdvancement=YES;
+      info->advanceA=abc[i].abcfA;
+      info->advanceB=abc[i].abcfB;
+      info->advanceC=abc[i].abcfC;
      }
     }
    }
-    DeleteObject(fontHandle);
 }
 
 static inline CGGlyphMetrics *fetchGlyphAdvancementIfNeeded(KTFont_gdi *self,CGGlyph glyph){
@@ -373,28 +345,33 @@ static inline CGGlyphMetrics *fetchGlyphAdvancementIfNeeded(KTFont_gdi *self,CGG
     return;
    }
 
-	// Don't use the magic pointSize scaling formula on these font (UI fonts)
+	// Don't use the magic pointSize scaling formula on these font (UI fonts) 
    if(![(NSString *)_name isEqualToString:@"Marlett"] && ![(NSString *)_name isEqualToString:@"Segoe UI"] && ![(NSString *)_name isEqualToString:@"Tahoma"])
     _useMacMetrics=YES;
 
-    _metrics.emsquare=ttMetrics->otmEMSquare;
-    _metrics.scale=_size*(FONT_DPI(_dc)/96.);
+   _metrics.emsquare=ttMetrics->otmEMSquare;
+   if(_useMacMetrics)
+    _metrics.scale=_size;
+   else
+    _metrics.scale=_size*96.0/72.0;
 
    _metrics.boundingRect.origin.x=ttMetrics->otmrcFontBox.left;
    _metrics.boundingRect.origin.y=ttMetrics->otmrcFontBox.bottom;
    _metrics.boundingRect.size.width=ttMetrics->otmrcFontBox.right-ttMetrics->otmrcFontBox.left;
    _metrics.boundingRect.size.height=ttMetrics->otmrcFontBox.top-ttMetrics->otmrcFontBox.bottom;
 
-    if (_useMacMetrics) {
-        _metrics.ascender=ttMetrics->otmMacAscent;
-        _metrics.descender=ttMetrics->otmMacDescent;
-        _metrics.leading=ttMetrics->otmMacLineGap;
-    } else {
-        _metrics.ascender=ttMetrics->otmAscent;
-        _metrics.descender=ttMetrics->otmDescent;
-        _metrics.leading=ttMetrics->otmLineGap;
-        _metrics.scale *= (96./72.);
-    }
+   
+   if(_useMacMetrics){
+    _metrics.ascender=ttMetrics->otmMacAscent;
+    _metrics.descender=ttMetrics->otmMacDescent;
+    _metrics.leading=ttMetrics->otmMacLineGap;
+   }
+   else {
+    _metrics.ascender=ttMetrics->otmAscent;
+    _metrics.descender=ttMetrics->otmDescent;
+    _metrics.leading=ttMetrics->otmLineGap;
+   }
+ 
    _metrics.italicAngle=ttMetrics->otmItalicAngle;
    _metrics.capHeight=ttMetrics->otmsCapEmHeight;
    _metrics.xHeight=ttMetrics->otmsXHeight;
@@ -419,106 +396,39 @@ static inline CGGlyphMetrics *fetchGlyphAdvancementIfNeeded(KTFont_gdi *self,CGG
 -initWithUIFontType:(CTFontUIFontType)uiFontType size:(CGFloat)size language:(NSString *)language {
    O2Font *font=nil;
    
-    // Try to ask the system which font we should use for menus
-    NONCLIENTMETRICSW nm;
-    nm.cbSize = sizeof (NONCLIENTMETRICSW);
-    BOOL systemInfoIsValid = NO;
-    if (SystemParametersInfoW(SPI_GETNONCLIENTMETRICS,0,&nm,0)) {
-        systemInfoIsValid = YES;
-    }
+   switch(uiFontType){
+  
+    case kCTFontMenuTitleFontType:
+	case kCTFontMenuItemFontType: {
+		   NSString *name = @"Tahoma";
+		   // Try to ask the system which font we should use for menus
+		   NONCLIENTMETRICSW nm;
+		   nm.cbSize = sizeof (NONCLIENTMETRICSW);
+		   if (SystemParametersInfoW(SPI_GETNONCLIENTMETRICS,0,&nm,0)) {
+			   LOGFONTW fl = nm.lfMenuFont;
+			   name = [NSString stringWithFormat:@"%S", fl.lfFaceName];
+			   if (size == 0) {
+				   size = ABS(fl.lfHeight);
+			   }
+		   }
+		   font=O2FontCreateWithFontName(name);
+		   if (font == nil) {
+			   font=O2FontCreateWithFontName(@"Tahoma");
+		   }
+		   if(size==0) {
+			   size=10;
+		   }
+	   }
+		   break;
+ 
+    default:
+     NSUnimplementedMethod();
+     return nil;
+   }
 
-    NSString *name =nil;
-    switch(uiFontType){
-        case kCTFontMenuItemMarkFontType:
-        case kCTFontMenuItemCmdKeyFontType:
-        case kCTFontMenuTitleFontType:
-        case kCTFontMenuItemFontType: {
-            name = @"Tahoma";
-            if (systemInfoIsValid) {
-                // Try to ask the system which font we should use for menus
-                LOGFONTW fl = nm.lfMenuFont;
-                name = [NSString stringWithFormat:@"%S", fl.lfFaceName];
-                if (size == 0) {
-                    size = ABS(fl.lfHeight);
-                }
-                if (size == 0) {
-                    size = 10.;
-                }
-            }
-        }
-            break;
-            
-        case kCTFontControlContentFontType:
-        case kCTFontToolbarFontType:
-        case kCTFontLabelFontType: {
-            name = @"Tahoma";
-            if (systemInfoIsValid) {
-                // Try to ask the system which font we should use for menus
-                LOGFONTW fl = nm.lfCaptionFont;
-                name = [NSString stringWithFormat:@"%S", fl.lfFaceName];
-#if USE_WIN_PREFS_FONTSIZE
-                if (size == 0) {
-                    size = ABS(fl.lfHeight);
-                }
-#endif
-                if (size == 0) {
-                    size = 10.;
-                }
-            }
-        }
-            break;
-            
-        case kCTFontSystemFontType: {
-            name = @"Tahoma";
-            if (systemInfoIsValid) {
-                // Try to ask the system which font we should use for menus
-                LOGFONTW fl = nm.lfMessageFont;
-                name = [NSString stringWithFormat:@"%S", fl.lfFaceName];
-#if USE_WIN_PREFS_FONTSIZE
-                if (size == 0) {
-                    size = ABS(fl.lfHeight);
-                }
-#endif
-                if (size == 0) {
-                    size = 12.;
-                }
-           }
-        }
-            break;
-
-        case kCTFontToolTipFontType: {
-            name = @"Tahoma";
-            if (systemInfoIsValid) {
-                // Try to ask the system which font we should use for menus
-                LOGFONTW fl = nm.lfStatusFont;
-                name = [NSString stringWithFormat:@"%S", fl.lfFaceName];
-#if USE_WIN_PREFS_FONTSIZE
-                if (size == 0) {
-                    size = ABS(fl.lfHeight);
-                }
-#endif
-                if (size == 0) {
-                    size = 10.;
-                }
-            }
-        }
-            break;
-
-        default:
-            NSLog(@"Unimplemented %d type", uiFontType);
-            return nil;
-    }
-
-    KTFont *result = nil;
-    if (name && size > 0.) {
-        font=O2FontCreateWithFontName(name);
-        if (font == nil) {
-            font=O2FontCreateWithFontName(@"Tahoma");
-        }
-        
-        result=[self initWithFont:font size:size];
-        [font release];
-    }
+   id result=[self initWithFont:font size:size];
+   [font release];
+   
    return result;
 }
 
@@ -561,7 +471,7 @@ static inline CGGlyphMetrics *fetchGlyphAdvancementIfNeeded(KTFont_gdi *self,CGG
 }
 
 -(float)descender {
-   return -_metrics.descender/_metrics.emsquare*_metrics.scale;
+   return _metrics.descender/_metrics.emsquare*_metrics.scale;
 }
 
 -(float)leading {
@@ -588,6 +498,7 @@ static inline CGGlyphMetrics *fetchGlyphAdvancementIfNeeded(KTFont_gdi *self,CGG
 
    previousInfo=fetchGlyphAdvancementIfNeeded(self,previous);
    currentInfo=fetchGlyphAdvancementIfNeeded(self,current);
+
    *isNominalp=YES;
 
    if(previous==CGNullGlyph){
@@ -595,14 +506,9 @@ static inline CGGlyphMetrics *fetchGlyphAdvancementIfNeeded(KTFont_gdi *self,CGG
     }
    }
    else {
-       if(previousInfo!=NULL) {
-           float delta = previousInfo->advanceA+previousInfo->advanceB+previousInfo->advanceC;
-           if (_useMacMetrics == NO) {
-               delta = roundf(delta);
-           }
-          result.x+=delta;
-       }
-    
+    if(previousInfo!=NULL)
+     result.x+=previousInfo->advanceA+previousInfo->advanceB+previousInfo->advanceC;
+
     if(current==CGNullGlyph){
     }
     else if(currentInfo!=NULL){
@@ -617,6 +523,7 @@ static inline CGGlyphMetrics *fetchGlyphAdvancementIfNeeded(KTFont_gdi *self,CGG
      }
     }
    }
+
    return result;
 }
 
@@ -648,12 +555,8 @@ static inline CGGlyphMetrics *fetchGlyphAdvancementIfNeeded(KTFont_gdi *self,CGG
      advancements[i].height=0;
     }
     else {
-        float delta = info->advanceA+info->advanceB+info->advanceC;
-        if (_useMacMetrics == NO) {
-            delta = roundf(delta);
-        }
-        advancements[i].width=delta;
-        advancements[i].height=0;
+     advancements[i].width=info->advanceA+info->advanceB+info->advanceC;
+     advancements[i].height=0;
     }
    }
 }
@@ -668,12 +571,8 @@ static inline CGGlyphMetrics *fetchGlyphAdvancementIfNeeded(KTFont_gdi *self,CGG
     if(info==NULL)
      NSLog(@"no info for glyph %d",glyphs[i]);
     else {
-        float delta = info->advanceA+info->advanceB+info->advanceC;
-        if (_useMacMetrics == NO) {
-            delta = roundf(delta);
-        }
-        result.width+=delta;
-        result.height+=0;
+     result.width+=info->advanceA+info->advanceB+info->advanceC;
+     result.height+=0;
     }
    }
    
@@ -971,9 +870,7 @@ static void ConvertTTPolygonToPath(LPTTPOLYGONHEADER lpHeader, DWORD size, O2Mut
 
 	// _metrics.scale seems to be the configured font size
 	// ttMetrics->otmEMSquare defines the size of the glyph box
-	float scale = _size / (float)ttMetrics->otmEMSquare;
-//    scale *= (FONT_DPI(_dc)/96.);
-
+	float scale = _metrics.scale / (float)ttMetrics->otmEMSquare;
 	// Scale the glyph box down to fit our font size
 	MAT2 mat2;
 	ZeroMemory(&mat2,sizeof(MAT2));
@@ -1000,8 +897,4 @@ static void ConvertTTPolygonToPath(LPTTPOLYGONHEADER lpHeader, DWORD size, O2Mut
    return result;
 }
 
-- (NSString *)description
-{
-    return [NSString stringWithFormat: @"%@ name: %@", [super description], _name];
-}
 @end

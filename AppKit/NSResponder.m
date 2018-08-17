@@ -93,8 +93,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
       for(j=0;j<length;j++){
        unichar check=buffer[j];
 
-        // Filter non char codes - Apple functions keys and ctrl chars
-       if(check>=NSUpArrowFunctionKey && check<=NSModeSwitchFunctionKey)
+       if(check>=NSUpArrowFunctionKey)
         check=' ';
        else if(check<' ')
         check=' ';

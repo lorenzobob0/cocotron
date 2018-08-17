@@ -5,7 +5,6 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
-#ifdef PLATFORM_IS_POSIX
 #import <Foundation/NSFileHandle_posix.h>
 #import <Foundation/NSString.h>
 #import <Foundation/NSPathUtilities.h>
@@ -21,8 +20,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSPlatform_posix.h>
 #import <Foundation/NSRaiseException.h>
 #import "NSSocket_bsd.h"
-#import <Foundation/NSThread.h>
-#import <Foundation/NSAutoreleasePool.h>
 
 #include <unistd.h>
 #import <sys/socket.h>
@@ -33,7 +30,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #include <stdio.h>
 #include <sys/types.h>
 #include <string.h>
-#import <netinet/in.h>
 
 @implementation NSFileHandle(ImplementedInSubclass)
 
@@ -197,37 +193,22 @@ CONFORMING TO
 // POSIX programmer's guide p. 272
 - (BOOL)isNonBlocking {
     int flags = fcntl(_fileDescriptor, F_GETFL);
-    if (flags == -1) {
-        NSRaiseException(NSFileHandleOperationException, self, _cmd,
-                         @"isNonBlocking: %s", strerror(errno));
-    }
-    
     return (flags & O_NONBLOCK)?YES:NO;
 }
 
 - (void)setNonBlocking:(BOOL)flag {
     int flags = fcntl(_fileDescriptor, F_GETFL);
-    if (flags == -1) {
-        NSRaiseException(NSFileHandleOperationException, self, _cmd,
-                         @"setNonBlocking(GETFL)(%d): %s", flag, strerror(errno));
-    }
-
     if (flag)
         flags |= O_NONBLOCK;
     else
         flags &= ~O_NONBLOCK;
 
-    if (fcntl(_fileDescriptor, F_SETFL, flags) == -1) {
-        NSRaiseException(NSFileHandleOperationException, self, _cmd,
-                         @"setNonBlocking(SETFL)(%d): %s", flag, strerror(errno));
-    }
+    fcntl(_fileDescriptor, F_SETFL, flags);
 }
 
 - (NSData *)readDataOfLength:(NSUInteger)length {
     NSMutableData *mutableData = [NSMutableData dataWithLength:length];
     ssize_t count, total = 0;
-
-    [self setNonBlocking:NO];
 
     do {
         count = read(_fileDescriptor, [mutableData mutableBytes]+total, length-total);
@@ -251,8 +232,6 @@ CONFORMING TO
 - (NSData *)readDataToEndOfFile {
     NSMutableData *mutableData = [NSMutableData dataWithLength:4096];
     ssize_t count, total = 0;
-
-    [self setNonBlocking:NO];
 
     do {
         count = read(_fileDescriptor, [mutableData mutableBytes]+total, 4096);
@@ -286,15 +265,14 @@ CONFORMING TO
         [self setNonBlocking:YES];
         count = read(_fileDescriptor, &((char*)[mutableData mutableBytes])[length], 4096);
         err = errno; // preserved so that the next fcntl doesn't clobber it
-        
         [self setNonBlocking:NO];
 
         if (count <= 0) {
-            while (err == EAGAIN || err == EINTR) {
-                [self setNonBlocking:NO];
+            if (err == EAGAIN || err == EINTR) {
+                [self setNonBlocking: NO];
                 count = read(_fileDescriptor, &((char*)[mutableData mutableBytes])[length], 1);
                 err = errno; // preserved so that the next fcntl doesn't clobber it
-                [self setNonBlocking:YES];
+                [self setNonBlocking: YES];
                 if (count > 0) {
                     count = read(_fileDescriptor, &((char*)[mutableData mutableBytes])[length + 1], 4096-1);
                     if (count > 0) {
@@ -303,11 +281,6 @@ CONFORMING TO
                     else {
                         count = 1;
                     }
-                    break;
-                }
-                else if (count == 0) {
-                    //no more data available
-                    break;
                 }
             }
         }
@@ -378,26 +351,6 @@ CONFORMING TO
     [[NSRunLoop currentRunLoop] addInputSource:_inputSource forMode:[modes objectAtIndex:i]];
 }
 
--(void)_acceptConnectionInBackgroundAndNotifyForModes:(NSArray *)modes {
-    NSAutoreleasePool* pool=[NSAutoreleasePool new];
-    
-    struct sockaddr_in addr;
-    socklen_t len = sizeof(addr);
-    getsockname(_fileDescriptor, (struct sockaddr *)&addr, &len);
-    
-    listen(_fileDescriptor, 1);
-    accept(_fileDescriptor, (struct sockaddr *)&addr, &len);
-    
-    NSNotification *note=[NSNotification notificationWithName:NSFileHandleConnectionAcceptedNotification object:self];
-    [[NSNotificationCenter defaultCenter] postNotification:note];
-    
-    [pool drain];
-}
-
--(void)acceptConnectionInBackgroundAndNotifyForModes:(NSArray *)modes {
-    [NSThread detachNewThreadSelector:@selector(_acceptConnectionInBackgroundAndNotifyForModes:) toTarget:self withObject:modes];
-}
-
 -(void)selectInputSource:(NSSelectInputSource *)inputSource selectEvent:(NSUInteger)selectEvent {
     NSData *availableData = [self availableData];
     NSDictionary   *userInfo;
@@ -415,5 +368,3 @@ CONFORMING TO
 }
 
 @end
-#endif
-

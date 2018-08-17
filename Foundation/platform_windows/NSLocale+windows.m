@@ -1,4 +1,3 @@
-#ifdef WINDOWS
 #import "NSLocale+windows.h"
 #import <Foundation/NSString.h>
 #import <Foundation/NSNumber.h>
@@ -85,5 +84,3 @@ BOOL NSCurrentLocaleIsMetric(){
 }
 
 @end
-#endif
-

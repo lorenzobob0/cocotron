@@ -102,10 +102,7 @@ static NSUInteger    _pickerMask=0;
     NSArray *colorPickersClassArray=[NSArray arrayWithObjects:
 									[NSColorPickerWheel class],
 									[NSColorPickerSliders class],
-#if 0
-                                     // Disabled to see if it fixes a nib instantiation issue
-                                     [NSColorPickerColorList class],
-#endif
+									[NSColorPickerColorList class],
 									nil];
     unsigned i,count=[colorPickersClassArray count];
 
@@ -184,10 +181,7 @@ static NSUInteger    _pickerMask=0;
 	if ([picker respondsToSelector: @selector(setColor:)]) {
 		[picker setColor: color];
 	}
-    float alpha = [color alphaComponent];
-    [opacitySlider setFloatValue: alpha * 100.f];
-    [opacityTextField setFloatValue: alpha * 100.f];
-    
+	
    [[NSNotificationQueue defaultQueue] enqueueNotification:[NSNotification notificationWithName:NSColorPanelColorDidChangeNotification object:self] postingStyle:NSPostNow coalesceMask:NSNotificationCoalescingOnName forModes:nil];  
 }
 

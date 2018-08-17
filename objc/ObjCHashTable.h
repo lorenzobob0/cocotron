@@ -17,49 +17,50 @@ typedef struct {
 } OBJCHashTable;
 
 typedef struct OBJCHashBucket {
-    struct OBJCHashBucket *next;
-    const char *key;
-    const void *value;
+   struct OBJCHashBucket *next;
+   const char            *key;
+   void                  *value;
 } OBJCHashBucket;
 
 typedef struct {
-    OBJCHashTable *table;
-    long i;
-    struct OBJCHashBucket *j;
+   OBJCHashTable         *table;
+   long                   i;
+   struct OBJCHashBucket *j;
 } OBJCHashEnumerator;
 
 OBJCHashTable *OBJCCreateHashTable(unsigned capacity);
-const void *OBJCHashInsertValueForKey(OBJCHashTable *table, const char *key, const void *value);
+void *OBJCHashInsertValueForKey(OBJCHashTable *table,const char *key,void *value);
 OBJCHashEnumerator OBJCEnumerateHashTable(OBJCHashTable *table);
 const char *OBJCNextHashEnumeratorKey(OBJCHashEnumerator *enumerator);
-const void *OBJCNextHashEnumeratorValue(OBJCHashEnumerator *enumerator);
+void *OBJCNextHashEnumeratorValue(OBJCHashEnumerator *enumerator);
 
-static inline unsigned OBJCHashString(const void *data) {
-    const unsigned char *s = data;
-    unsigned result = 0, i;
+static inline unsigned OBJCHashString (const void *data) {
+   const unsigned char *s=data;
+   unsigned             result=0,i;
 
-    if(s != NULL) {
-        result = 5381;
+   if(s!=NULL){
+    result=5381;
 
-        for(i = 0; s[i] != '\0'; i++)
-            result = (((result << 5) | (result >> 27)) + result) + s[i]; // hash*33 % (2^32-1) + c (barring overflow during additions)
-    }
+    for(i=0;s[i]!='\0';i++)
+     result=((result<<5)+result)+s[i]; // hash*33+c
+   }
 
-    return result;
+   return result;
 };
 
-static inline int OBJCIsStringEqual(const void *data1, const void *data2) {
+static inline int OBJCIsStringEqual (const void *data1, const void *data2) {
 
-    return (strcmp((char *)data1, (char *)data2)) ? NO : YES;
+    return (strcmp ((char *) data1, (char *) data2)) ? NO : YES;
 };
 
-static inline const void *OBJCHashValueForKey(OBJCHashTable *table, const char *key) {
-    int i = OBJCHashString(key) % table->nBuckets;
-    OBJCHashBucket *j;
+static inline void *OBJCHashValueForKey(OBJCHashTable *table,const char *key){
+   int             i=OBJCHashString(key)%table->nBuckets;
+   OBJCHashBucket *j;
 
-    for(j = table->buckets[i]; j != NULL; j = j->next)
-        if(OBJCIsStringEqual(j->key, key))
-            return j->value;
+   for(j=table->buckets[i];j!=NULL;j=j->next)
+    if(OBJCIsStringEqual(j->key,key))
+     return j->value;
 
-    return NULL;
+   return NULL;
 }
+

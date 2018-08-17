@@ -11,53 +11,49 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <CoreFoundation/CFDateFormatter.h>
 
 typedef enum {
-    NSDateFormatterBehaviorDefault = 0,
-    NSDateFormatterBehavior10_0 = 1000,
-    NSDateFormatterBehavior10_4 = 1040,
+   NSDateFormatterBehaviorDefault = 0,
+   NSDateFormatterBehavior10_0    = 1000,
+   NSDateFormatterBehavior10_4    = 1040,
 } NSDateFormatterBehavior;
 
 typedef enum {
-    NSDateFormatterNoStyle = kCFDateFormatterNoStyle,
-    NSDateFormatterShortStyle = kCFDateFormatterShortStyle,
-    NSDateFormatterMediumStyle = kCFDateFormatterMediumStyle,
-    NSDateFormatterLongStyle = kCFDateFormatterLongStyle,
-    NSDateFormatterFullStyle = kCFDateFormatterFullStyle
+   NSDateFormatterNoStyle     = kCFDateFormatterNoStyle,
+   NSDateFormatterShortStyle  = kCFDateFormatterShortStyle,
+   NSDateFormatterMediumStyle = kCFDateFormatterMediumStyle,
+   NSDateFormatterLongStyle   = kCFDateFormatterLongStyle,
+   NSDateFormatterFullStyle   = kCFDateFormatterFullStyle
 } NSDateFormatterStyle;
 
 @interface NSDateFormatter : NSFormatter {
-    NSDateFormatterBehavior _behavior;
-    NSDateFormatterStyle _dateStyle;
-    NSDateFormatterStyle _timeStyle;
-    NSString *_dateFormat10_0;
-    NSString *_dateFormat;
-    BOOL _allowsNaturalLanguage;
-    NSDictionary *_locale;
-    NSTimeZone *_tz;
+   NSDateFormatterBehavior _behavior;
+   NSDateFormatterStyle    _dateStyle;
+   NSDateFormatterStyle    _timeStyle;
+   NSString *_dateFormat10_0;
+   NSString *_dateFormat;
+   BOOL _allowsNaturalLanguage;
+   NSDictionary *_locale;
 }
 
-- initWithDateFormat:(NSString *)format allowNaturalLanguage:(BOOL)flag; // shouldn't this be "allows" ?
+-initWithDateFormat:(NSString *)format allowNaturalLanguage:(BOOL)flag; // shouldn't this be "allows" ?
 
 // added because NSDateFormatter is the backend for initWithString:calendarFormat:locale
 // shouldn't this really exist anyway?
-- initWithDateFormat:(NSString *)format allowNaturalLanguage:(BOOL)flag locale:(NSDictionary *)locale;
+-initWithDateFormat:(NSString *)format allowNaturalLanguage:(BOOL)flag locale:(NSDictionary *)locale;
 
-- (NSString *)dateFormat;
-- (BOOL)allowsNaturalLanguage;
-- (NSDateFormatterBehavior)formatterBehavior;
+-(NSString *)dateFormat;
+-(BOOL)allowsNaturalLanguage;
+-(NSDateFormatterBehavior)formatterBehavior;
 
-- (NSDictionary *)locale;
+-(NSDictionary *)locale;
 
-- (void)setDateFormat:(NSString *)format;
+-(void)setDateFormat:(NSString *)format;
 
 - (NSString *)stringFromDate:(NSDate *)date;
-- (NSDate *)dateFromString:(NSString *)string;
 - (NSArray *)shortStandaloneWeekdaySymbols;
 - (NSArray *)standaloneWeekdaySymbols;
 
-- (void)setLenient:(BOOL)value;
-- (void)setFormatterBehavior:(NSDateFormatterBehavior)value;
-- (void)setTimeZone:(NSTimeZone *)tz;
-- (NSTimeZone *)timeZone;
+-(void)setLenient:(BOOL)value;
+-(void)setFormatterBehavior:(NSDateFormatterBehavior)value;
 
 @end
 
@@ -66,7 +62,6 @@ typedef enum {
 NSTimeInterval NSMoveIntervalFromTimeZoneToGMT(NSTimeInterval interval, NSTimeZone *timeZone);
 NSTimeInterval NSMoveIntervalFromGMTToTimeZone(NSTimeInterval interval, NSTimeZone *timeZone);
 
-NSInteger NSNumberOfDaysInMonthOfYear(NSInteger month, NSInteger year);
 // interval is not time zone adjusteed
 NSTimeInterval NSTimeIntervalWithComponents(NSInteger year, NSInteger month, NSInteger day, NSInteger hour, NSInteger minute, NSInteger second, NSInteger milliseconds);
 
@@ -92,6 +87,6 @@ NSInteger NSSecondFromTimeInterval(NSTimeInterval interval); // 0-59
 NSInteger NSMillisecondsFromTimeInterval(NSTimeInterval interval); // 0-999
 
 // interval will be time-zone adjusted
-NSString *NSStringWithDateFormatLocale(NSTimeInterval interval, NSString *format, NSDictionary *locale, NSTimeZone *timeZone);
+NSString *NSStringWithDateFormatLocale(NSTimeInterval interval,NSString *format,NSDictionary *locale,NSTimeZone *timeZone);
 
-NSDate *NSDateWithStringDateFormatLocale(NSString *string, NSString *format, NSDictionary *locale, NSTimeZone *timeZone);
+NSCalendarDate *NSCalendarDateWithStringDateFormatLocale(NSString *string, NSString *format, NSDictionary *locale);

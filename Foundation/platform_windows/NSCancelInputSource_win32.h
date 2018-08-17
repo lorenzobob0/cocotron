@@ -10,6 +10,7 @@
 #import <Foundation/NSHandleMonitor_win32.h>
 
 @interface NSCancelInputSource_win32 : NSHandleMonitor_win32 {
+
 }
 
 @end

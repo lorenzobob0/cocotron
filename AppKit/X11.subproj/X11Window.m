@@ -54,7 +54,6 @@ void CGNativeBorderFrameWidthsForStyle(unsigned styleMask,CGFloat *top,CGFloat *
 
 
 -initWithFrame:(O2Rect)frame styleMask:(unsigned)styleMask isPanel:(BOOL)isPanel backingType:(NSUInteger)backingType {
-   _level=kCGNormalWindowLevel;
    _backingType=backingType;
    _deviceDictionary=[NSMutableDictionary new];
    _display=[(X11Display*)[NSDisplay currentDisplay] display];
@@ -233,10 +232,6 @@ void CGNativeBorderFrameWidthsForStyle(unsigned styleMask,CGFloat *top,CGFloat *
    [self invalidateContextsWithNewSize:frame.size];
 }
 
--(void)setLevel:(int)value {
-    _level=value;
-}
-
 -(void)showWindowForAppActivation:(O2Rect)frame {
    NSUnimplementedMethod();
 }
@@ -279,9 +274,6 @@ void CGNativeBorderFrameWidthsForStyle(unsigned styleMask,CGFloat *top,CGFloat *
 -(void)makeKey {
    [self ensureMapped];
    XRaiseWindow(_display, _window);
-}
-
--(void)makeMain {
 }
 
 -(void)captureEvents {
@@ -350,7 +342,7 @@ CGL_EXPORT CGLError CGLCreateContextForWindow(CGLPixelFormatObj pixelFormat,CGLC
        if(1)
         [self openGLFlushBuffer];
        else {
-        //[_context drawBackingContext:_backingContext size:_frame.size];
+        [_context drawBackingContext:_backingContext size:_frame.size];
         O2ContextFlush(_context);
        }
       }
@@ -436,29 +428,3 @@ static int ignoreBadWindow(Display* display,
 
 
 @end
-
-CGRect CGInsetRectForNativeWindowBorder(CGRect frame,unsigned styleMask){
-    CGFloat top,left,bottom,right;
-    
-    CGNativeBorderFrameWidthsForStyle(styleMask,&top,&left,&bottom,&right);
-    
-    frame.origin.x+=left;
-    frame.origin.y+=bottom;
-    frame.size.width-=left+right;
-    frame.size.height-=top+bottom;
-    
-    return frame;
-}
-
-CGRect CGOutsetRectForNativeWindowBorder(CGRect frame,unsigned styleMask){
-    CGFloat top,left,bottom,right;
-    
-    CGNativeBorderFrameWidthsForStyle(styleMask,&top,&left,&bottom,&right);
-    
-    frame.origin.x-=left;
-    frame.origin.y-=bottom;
-    frame.size.width+=left+right;
-    frame.size.height+=top+bottom;
-    
-    return frame;
-}

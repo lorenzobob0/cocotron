@@ -42,8 +42,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - (BOOL) updateFromPath: (NSString*) path attributes: (NSDictionary*) attrs
 {
-    [_path release];
-    _path = [path copy];
 	_fileAttributes = [attrs retain];
 	return attrs != nil;
 }
@@ -233,7 +231,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - (void) dealloc
 {
-    [_path release];
 	[_fileAttributes release];
 	[_preferredFilename release];
 	[_filename release];
@@ -264,8 +261,9 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 {
 	if ([super updateFromPath: path attributes: attrs]) {
 		[contentData release];
-        contentData = nil;
+		unsigned long long length = [attrs fileSize];
 		
+		contentData = length < 8192*160 ? [[NSData alloc] initWithContentsOfFile: path] : [[NSData alloc] initWithContentsOfMappedFile: path]; // use some treshhold to not thrash for big files - can we run out of file handles here?
 		return YES;
 	}
 	return NO;
@@ -278,10 +276,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 - (NSData*) regularFileContents
 {
-    if (contentData == nil) {
-        unsigned long long length = [[self fileAttributes] fileSize];
-        contentData = length < 8192*160 ? [[NSData alloc] initWithContentsOfFile: _path] : [[NSData alloc] initWithContentsOfMappedFile: _path]; // use some treshhold to not thrash for big files - can we run out of file handles here?
-    }
 	return contentData;
 }
 

@@ -13,32 +13,28 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 void *NSBytesReplicate(const void *src,NSUInteger count,NSZone *zone) {
    void    *dst=NSZoneMalloc(zone,count);
 
-    if (dst != NULL) {
-        NSByteCopy(src,dst,count);
-    }
-    
+   NSByteCopy(src,dst,count);
+
    return dst;
 }
 
 NSData *NSData_concreteNew(NSZone *zone,const char *bytes,NSUInteger length) {
    NSData_concrete *self=NSAllocateObject([NSData_concrete class],0,zone);
-    if (self) {
-       self->_length=length;
-       self->_bytes=NSBytesReplicate(bytes,length,zone);
-       self->_freeWhenDone=YES;
-    }
-    
+
+   self->_length=length;
+   self->_bytes=NSBytesReplicate(bytes,length,zone);
+   self->_freeWhenDone=YES;
+
    return self;
 }
 
 NSData *NSData_concreteNewNoCopy(NSZone *zone,void *bytes,NSUInteger length) {
    NSData_concrete *self=NSAllocateObject([NSData_concrete class],0,zone);
 
-    if (self) {
-       self->_length=length;
-       self->_bytes=bytes;
-       self->_freeWhenDone=YES;
-    }
+   self->_length=length;
+   self->_bytes=bytes;
+   self->_freeWhenDone=YES;
+
    return self;
 }
 

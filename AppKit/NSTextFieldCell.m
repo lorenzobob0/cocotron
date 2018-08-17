@@ -262,6 +262,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
      drawValue=placeString;
 }
    }
+
 	[drawValue _clipAndDrawInRect:titleRect truncatingTail: _lineBreakMode > NSLineBreakByClipping];
 }
 

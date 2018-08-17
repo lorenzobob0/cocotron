@@ -500,10 +500,10 @@ namespace agg
                         delete [] m_font_names[0];
                         if(m_old_font) ::SelectObject(m_dc, m_old_font);
                         ::DeleteObject(m_fonts[0]);
-                        memmove(m_fonts, 
+                        memcpy(m_fonts, 
                                m_fonts + 1, 
                                (m_max_fonts - 1) * sizeof(HFONT));
-                        memmove(m_font_names, 
+                        memcpy(m_font_names, 
                                m_font_names + 1, 
                                (m_max_fonts - 1) * sizeof(char*));
                         m_num_fonts = m_max_fonts - 1;
@@ -940,4 +940,8 @@ namespace agg
         }
         return false;
     }
+
+
+
 }
+

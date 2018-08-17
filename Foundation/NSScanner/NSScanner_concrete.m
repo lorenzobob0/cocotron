@@ -16,8 +16,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSAutoreleasePool.h>
 #include <limits.h>
 #include <stdlib.h>
-#include <ctype.h>
-#include <wctype.h>
 
 @implementation NSScanner_concrete
 
@@ -75,7 +73,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 -(BOOL)isAtEnd {
     NSUInteger length = [_string length];
     NSUInteger currentLocation = _location;
-    
+
     for(;currentLocation < length;currentLocation++){
         if([_skipSet characterIsMember:[_string characterAtIndex:currentLocation]] == YES) {
             continue;
@@ -204,55 +202,36 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 // "...returns HUGE_VAL or -HUGE_VAL on overflow, 0.0 on underflow." hmm...
 -(BOOL)scanDouble:(double *)valuep {
-    double value;
-    
-    // This algo assumes we can freely convert from unichar to char for chars needed to parse a double
-    // This is problably wrong for some locale
+	double value;
+   NSString *seperatorString;
+   unichar   decimalSeperator;
+   if(_locale)
+      seperatorString = [_locale objectForKey:NSLocaleDecimalSeparator];
+   else
+      seperatorString = [[NSLocale systemLocale] objectForKey:NSLocaleDecimalSeparator];
+   decimalSeperator = ([seperatorString length] > 0 ) ? [seperatorString characterAtIndex:0] : '.';
 
-    unichar   decimalSeperator = '.';
-    if(_locale) {
-        NSString *separatorString = [_locale objectForKey:NSLocaleDecimalSeparator];
-        if ([separatorString length] > 0) {
-            decimalSeperator = [separatorString characterAtIndex:0];
-        }
-    }
-    
-    NSInteger     len = [_string length] - _location;
-    char    p[len + 1], *q;
-    
-    NSInteger i = 0;
-    // First skip anything from the skip set and space
-    for (i = 0; i < len; i++) {
-        unichar c  = [_string characterAtIndex:i + _location];
-        if (iswspace(c)) {
-            continue;
-        }
-        if ([_skipSet characterIsMember:c] == NO) {
-            // We've reached something useful
-            break;
-        }
-    }
-    // Copy potentially useful chars, replacing NSScanner decimal separator with a "."
-    NSInteger firstUsedIndex = i;
-    for (; i < len; i++) {
-        unichar c  = [_string characterAtIndex:i + _location];
-        if (c == decimalSeperator) {
-            c = '.';
-        } else {
-            if (!isdigit(c) && c != '+' && c != '-' && c != 'e' && c != 'E') {
-                // Not something that can be part of a "double" anymore
-                // So we can stop here
-                break;                
-            }
-        }
-        p[i] = (char)c;
-    }
-    p[i] = '\0';
-	value = strtod(p+firstUsedIndex, &q);
+   NSInteger     i;
+   NSInteger     len = [_string length] - _location;
+   char    p[len + 1], *q;
+   unichar c;
+
+   for (i = 0; i < len; i++)
+   {
+      c  = [_string characterAtIndex:i + _location];
+      // Just replace any char from the skip set with space - the double parser will then skip them automatically 
+      if ([_skipSet characterIsMember:c]) c = ' ';
+      if (c == decimalSeperator) c = '.';
+      p[i] = (char)c;
+   }
+   p[i] = '\0';
+
+	value = strtod(p, &q);
 	if (NULL != valuep)
 		*valuep = value;
-    _location += (q - p);
-    return (q > p);
+   _location += (q - p);
+   return (q > p);
+
 /*
     enum {
         STATE_SPACE,
@@ -591,13 +570,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 -(BOOL)scanUpToString:(NSString *)string intoString:(NSString **)stringp {
     NSInteger length=[_string length];
-    unichar *result = NSZoneMalloc(NULL, sizeof(unichar) * length);
+    unichar result[length];
     int resultLength = 0;
     BOOL scanStarted = NO;
     NSStringCompareOptions compareOption = 0;
     NSRange range = {0,[string length]};
     NSInteger oldLocation =_location;
-    
+
     if(!_isCaseSensitive) {
         compareOption = NSCaseInsensitiveSearch;
     }
@@ -605,11 +584,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     for(;_location<length;_location++) {
         NSAutoreleasePool *pool = [NSAutoreleasePool new];
         NSString    *subStr = [_string substringFromIndex:_location];
-        
+
         if([subStr length] < [string length]) {
             _location = oldLocation;
             [pool drain];
-            NSZoneFree(NULL, result);
             return NO;
         } 
 		
@@ -626,9 +604,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                     *stringp = [[NSString alloc] initWithCharacters:result length:resultLength];
                 
                 [pool drain];
-                if (stringp != NULL) [*stringp autorelease];
-
-                NSZoneFree(NULL, result);
+                [*stringp autorelease];
                 return YES;
             } else {
                 if ([_skipSet characterIsMember:unicode] == YES) {
@@ -640,8 +616,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
                         *stringp = [[NSString alloc] initWithCharacters:result length:resultLength];
                     
                     [pool drain];
-                    if (stringp != NULL) [*stringp autorelease];
-                    NSZoneFree(NULL, result);
+                    [*stringp autorelease];
                     return YES;
                 }
             }
@@ -653,16 +628,13 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     }
 
     if (resultLength > 0) {
-        if (stringp != NULL) {
+        if (stringp != NULL)
             *stringp = [NSString stringWithCharacters:result length:resultLength];
-        }
 
-        NSZoneFree(NULL, result);
         return YES;
     }
     else {
         _location = oldLocation;
-        NSZoneFree(NULL, result);
         return NO;
     }
 }
@@ -670,7 +642,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 -(BOOL)scanCharactersFromSet:(NSCharacterSet *)charset intoString:(NSString **)stringp
 {
     NSInteger length=[_string length];
-    unichar *result = NSZoneMalloc(NULL, sizeof(unichar) * length);
+    unichar result[length];
     int resultLength = 0;
     BOOL scanStarted = NO;
 
@@ -678,7 +650,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 		{
 		unichar unicode=[_string characterAtIndex:_location];
 
-		if ((scanStarted == NO) && [_skipSet characterIsMember:unicode])
+		if ([_skipSet characterIsMember:unicode] && (scanStarted == NO))
 			{
 			// do nothing
 			}
@@ -703,14 +675,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 			*stringp = [NSString stringWithCharacters:result length:resultLength];
 			}
 		}
-    
-    NSZoneFree(NULL, result);
 	return scanStarted;
 }
 
 -(BOOL)scanUpToCharactersFromSet:(NSCharacterSet *)charset intoString:(NSString **)stringp {
     NSInteger length=[_string length];
-    unichar *result = NSZoneMalloc(NULL, sizeof(unichar) * length);
+    unichar result[length];
     int resultLength = 0;
     BOOL scanStarted = NO;
     NSInteger oldLocation =_location;
@@ -718,7 +688,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     for(;_location<length;_location++) {
         unichar unicode=[_string characterAtIndex:_location];
 
-        if (scanStarted == NO && [_skipSet characterIsMember:unicode])
+        if ([_skipSet characterIsMember:unicode] && scanStarted == NO)
             continue;
         else if ([charset characterIsMember:unicode])
             break;
@@ -729,15 +699,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     }
 
     if (resultLength > 0) {
-        if (stringp != NULL) {
+        if (stringp != NULL)
             *stringp = [NSString stringWithCharacters:result length:resultLength];
-        }
-        NSZoneFree(NULL, result);
+
         return YES;
     }
     else {
         _location = oldLocation;
-        NSZoneFree(NULL, result);
+
         return NO;
     }
 }

@@ -502,16 +502,7 @@ static NSDocumentController *shared=nil;
     NSError *error=nil;
     NSURL   *url=[NSURL fileURLWithPath:[paths objectAtIndex:tag]];
     
-    if (![self openDocumentWithContentsOfURL:url display:YES error:&error] || error) {
-     if ([url isFileURL]) {
-      NSObject <NSApplicationDelegate> *appDelegate = [NSApp delegate];
-      if ([appDelegate respondsToSelector:@selector(application:openFiles:)]) {
-       [appDelegate application:NSApp openFiles:[NSArray arrayWithObject:[url path]]];       
-      } else if ([appDelegate respondsToSelector:@selector(application:openFile:)]) {
-       [appDelegate application:NSApp openFile:[url path]];       
-      }
-     }
-    }
+    [self openDocumentWithContentsOfURL:url display:YES error:&error];
    }
 }
 

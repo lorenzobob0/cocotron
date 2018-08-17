@@ -8,7 +8,9 @@
 
 #import "Demo.h"
 
+
 @interface DemoGradient : Demo {
+
 }
 
 @end

@@ -154,9 +154,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     if(_currentEditor==nil){
         NSText* editor =[[self window] fieldEditor:YES forObject:self];
         _currentEditor = [[cell setUpFieldEditorAttributes: editor] retain];
-     [_currentEditor setDelegate:self];
-     [_currentEditor registerForDraggedTypes:[self _draggedTypes]];
-     [_currentEditor becomeFirstResponder];
     }
 
     [cell selectWithFrame:[self bounds] inView:self editor:_currentEditor delegate:self start:range.location length:range.length];
@@ -243,24 +240,17 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     [[self window] selectKeyViewPrecedingView:self];
 }
 
+// FIX do we need this? selectText: seems to do the job for us
 -(void)mouseDown:(NSEvent *)event {
    NSTextFieldCell *cell=[self selectedCell];
 
    if(![cell isEnabled])
     return;
 
-    if ([[self window] firstResponder] != self) {
-        // This will create our editor if needed
-        [[self window] makeFirstResponder:self];
-    }
-    
-    NSPoint point=[self convertPoint:[event locationInWindow] fromView:nil];
-    NSRect  editingFrame=[cell titleRectForBounds:[self bounds]];
-    
-    // In case we get the mouse down because we hadn't an editor yet, propagate the mouse event to the editor
-    if(_currentEditor && NSMouseInRect(point,editingFrame,[self isFlipped])) {
-        [_currentEditor mouseDown:event];
-    } else {
+   NSPoint point=[self convertPoint:[event locationInWindow] fromView:nil];
+   NSRect  editingFrame=[cell titleRectForBounds:[self bounds]];
+   
+    if(!NSMouseInRect(point,editingFrame,[self isFlipped])) {
         [super mouseDown:event];
     }
 }
@@ -327,30 +317,25 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 -(void)setStringValue:(NSString *)value {
-   if (!_currentEditor)
-      [super setStringValue:value];
-   else
-   {
-      NSRange selectedRange=[_currentEditor selectedRange];
-      BOOL isEntireString=NSEqualRanges(selectedRange, NSMakeRange(0, [[_currentEditor string] length]));
+    NSRange selectedRange=[_currentEditor selectedRange];
+    BOOL isEntireString=NSEqualRanges(selectedRange, NSMakeRange(0, [[_currentEditor string] length]));
     
-      [super setStringValue:value];
-      [_currentEditor setString:[self stringValue]];
-      NSRange entireString=NSMakeRange(0, [[_currentEditor string] length]);
+    [super setStringValue:value];
+    [_currentEditor setString:[self stringValue]];
+    NSRange entireString=NSMakeRange(0, [[_currentEditor string] length]);
     
-      if (isEntireString) {
-         // NSTextField will re-select entire string on a setString: if the previous value is completely selected
-         [_currentEditor setSelectedRange:entireString];
-      }
-      else {
+    if(isEntireString) {
+        // NSTextField will re-select entire string on a setString: if the previous value is completely selected
+        [_currentEditor setSelectedRange:entireString];
+    }
+    else {
         // otherwise it will re-select what it can
         selectedRange=NSIntersectionRange(selectedRange, entireString);
         
-        if (selectedRange.length==0) // 0 on intersection is undefined location, so we have to set it
+        if(selectedRange.length==0) // 0 on intersection is undefined location, so we have to set it
             selectedRange.location=0;
-        [_currentEditor setSelectedRange:entireString];
-      }
-   }
+        [_currentEditor setSelectedRange:entireString]; 
+    }
 }
 
 -(void)setFont:(NSFont *)font {

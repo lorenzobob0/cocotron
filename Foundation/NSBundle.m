@@ -17,23 +17,16 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSDictionary.h>
 #import <Foundation/NSFileManager.h>
 #import <Foundation/NSRaise.h>
-#import <Foundation/NSError.h>
-#import <Foundation/NSString.h>
 #import <Foundation/NSPlatform.h>
-#import <Foundation/NSURL.h>
-#import <Foundation/NSUserDefaults.h>
 #import <objc/runtime.h>
 #import <Foundation/NSRaiseException.h>
-#if defined(__APPLE__)
-#import"OBJCRegisterModule_Darwin.h"
-#endif
 
 #import <objc/objc.h>
 #include <stdio.h>
 
 typedef void *NSModuleHandle;
 
-OBJC_EXPORT NSModuleHandle NSLoadModule(const char *path, NSError **error);
+OBJC_EXPORT NSModuleHandle NSLoadModule(const char *path);
 OBJC_EXPORT BOOL NSUnloadModule(NSModuleHandle handle);
 OBJC_EXPORT const char *NSLastModuleError(void);
 OBJC_EXPORT void *NSSymbolInModule(NSModuleHandle handle, const char *symbol);
@@ -48,13 +41,26 @@ OBJC_EXPORT void *NSSymbolInModule(NSModuleHandle handle, const char *symbol);
 #include <unistd.h>
 #endif
 
-#import <objc/dyld.h>
 
 #if defined(GCC_RUNTIME_3) || defined(APPLE_RUNTIME_4)
+#ifdef __APPLE__
 
-#if defined(LINUX)
+#include <mach-o/dyld.h>
+
+#elif defined(LINUX)
 
 #include <sys/stat.h>
+
+
+static int _NSGetExecutablePath(char *buf, ssize_t *bufsize)
+{
+    if ((*bufsize = readlink("/proc/self/exe", buf, *bufsize)) < 0) {
+        *bufsize = MAXPATHLEN;
+        return -1;
+    }
+    return 0;
+}
+
 
 static inline unsigned int processMaps(char *maps, const char **soNames)
 {
@@ -196,28 +202,23 @@ int OBJCRegisterDLL(HINSTANCE handle){
    return 1;
 }
 
-NSModuleHandle NSLoadModule(const char *path, NSError **error) {
+NSModuleHandle NSLoadModule(const char *path) {
    NSModuleHandle handle;
 
    OBJCResetModuleQueue();
 
    handle=LoadLibrary(path);
 
-    if(handle!=NULL) {
-        OBJCRegisterDLL(handle);
-    }
-    else {
-        if (error != NULL) {
-            *error = [NSError errorWithDomain:NSWin32ErrorDomain code:GetLastError() userInfo:nil];
-        }
-    }
+   if(handle!=NULL)
+    OBJCRegisterDLL(handle);
 
    return handle;
 }
 #else
 
-NSModuleHandle NSLoadModule(const char *path, NSError **error) {
-   NSModuleHandle handle;
+NSModuleHandle NSLoadModule(const char *path)
+{
+    NSModuleHandle handle;
 
     // dlopen doesn't accept partial paths.
     if (path[0] != '/' && path[0] != '.') {
@@ -234,23 +235,15 @@ NSModuleHandle NSLoadModule(const char *path, NSError **error) {
                 return NULL;
             }
         } else {
-          if (error != NULL) {
-              *error = [NSError errorWithDomain:NSPOSIXErrorDomain code:0 userInfo:[NSDictionary dictionaryWithObject:@"NSLoadModule: cannot find cwd and relative path specified" forKey:NSLocalizedDescriptionKey]];
-          }
+            NSCLog("NSLoadModule: cannot find cwd and relative path specified");
             return NULL;
         }
     }
 
     handle = dlopen(path, RTLD_NOW | RTLD_GLOBAL);
     if (handle == NULL) {
-       if (error != NULL) {
-           *error = [NSError errorWithDomain:NSPOSIXErrorDomain code:0 userInfo:[NSDictionary dictionaryWithObject:[NSString stringWithFormat:@"%s", NSLastModuleError()] forKey:NSLocalizedDescriptionKey]];
-       }
+        NSCLog(NSLastModuleError());
     }
-
-#ifdef __APPLE__    
-    OBJCRegisterModule_Darwin(path);
-#endif
 
     return handle;
 }
@@ -306,15 +299,10 @@ static NSMapTable *pathToObject=NULL;
    or
     MyProgram[.exe]
     MyProgram.app/Contents/
-  or
-    MyProgram.app/MyProgram[.exe]
-    [MyProgram.app/Resources]
 
  */
 + (NSString *)bundlePathFromModulePath:(NSString *)path
 {
-    path = [path stringByStandardizingPath];
-
     NSString *result = nil;
     NSString *directory = [path stringByDeletingLastPathComponent];
     NSString *extension = [[path pathExtension] lowercaseString];
@@ -326,18 +314,12 @@ static NSMapTable *pathToObject=NULL;
     }
 
     if (![extension isEqualToString:NSPlatformLoadableObjectFileExtension]) {
-        // Support for MyProgram.app/MyProgram[.exe]
-        if ([[directory lastPathComponent] isEqualToString:[NSString stringWithFormat:@"%@.app", name]] == YES) {
-            return directory;
-        }
-        else {
-            NSString *check = [[directory stringByAppendingPathComponent:name] stringByAppendingPathExtension:@"app"];
-            
-            if ([[NSFileManager defaultManager] fileExistsAtPath:check]) {
-                result = check;
-            } else {
-                result = [[directory stringByDeletingLastPathComponent] stringByDeletingLastPathComponent];
-            }
+        NSString *check = [[directory stringByAppendingPathComponent:name] stringByAppendingPathExtension:@"app"];
+
+        if ([[NSFileManager defaultManager] fileExistsAtPath:check]) {
+            result = check;
+        } else {
+            result = [[directory stringByDeletingLastPathComponent] stringByDeletingLastPathComponent];
         }
     } else {
         NSString *loadablePrefix = NSPlatformLoadableObjectFilePrefix;
@@ -346,22 +328,17 @@ static NSMapTable *pathToObject=NULL;
         if ([loadablePrefix length] > 0 && [name hasPrefix:loadablePrefix]) {
             name = [name substringFromIndex:[loadablePrefix length]];
         }
-        
-        if ([[directory lastPathComponent] isEqualToString:[NSString stringWithFormat:@"%@.bundle", name]] == YES) {
-            return directory;
-        }
-        else {
-            check = [[directory stringByAppendingPathComponent:name] stringByAppendingPathExtension:@"framework"];
-            
+
+        check = [[directory stringByAppendingPathComponent:name] stringByAppendingPathExtension:@"framework"];
+
+        if ([[NSFileManager defaultManager] fileExistsAtPath:check]) {
+            result = check;
+        } else {
+            check = [[[directory stringByDeletingLastPathComponent] stringByAppendingPathComponent:@"Frameworks"] stringByAppendingPathComponent:[name stringByAppendingPathExtension:@"framework"]];
             if ([[NSFileManager defaultManager] fileExistsAtPath:check]) {
                 result = check;
             } else {
-                check = [[[directory stringByDeletingLastPathComponent] stringByAppendingPathComponent:@"Frameworks"] stringByAppendingPathComponent:[name stringByAppendingPathExtension:@"framework"]];
-                if ([[NSFileManager defaultManager] fileExistsAtPath:check]) {
-                    result = check;
-                } else {
-                    result = [[directory stringByDeletingLastPathComponent] stringByDeletingLastPathComponent];
-                }
+                result = [[directory stringByDeletingLastPathComponent] stringByDeletingLastPathComponent];
             }
         }
     }
@@ -492,7 +469,7 @@ static NSMapTable *pathToObject=NULL;
         return [realBundle retain];
     }
 
-    _path = [[path stringByStandardizingPath] retain];
+    _path = [path retain];
     _resourcePath = [_path stringByAppendingPathComponent:@"Resources"];
     if (![[NSFileManager defaultManager] fileExistsAtPath:_resourcePath]) {
         _resourcePath = [[_path stringByAppendingPathComponent:@"Contents"] stringByAppendingPathComponent:@"Resources"];
@@ -568,9 +545,6 @@ static NSMapTable *pathToObject=NULL;
 
     if(path==nil)
      path=[self pathForResource:@"Info" ofType:@"plist" inDirectory:@"Resources"];
-       
-    if(![[NSFileManager defaultManager] fileExistsAtPath:path])
-        path=[[_path stringByAppendingPathComponent:@"Info"] stringByAppendingPathExtension:@"plist"];
 
     _infoDictionary=[[NSDictionary allocWithZone:NULL] initWithContentsOfFile:path];
 
@@ -664,6 +638,9 @@ static NSMapTable *pathToObject=NULL;
    NSUnimplementedMethod();
    return 0;
 }
+-(BOOL)loadAndReturnError:(NSError **)error {
+   return [self load];
+}
 
 /*
   Frameworks are organized as:
@@ -674,7 +651,7 @@ static NSMapTable *pathToObject=NULL;
 
 -(NSString *)_findExecutable {
    NSString *type=[_path pathExtension];
-   NSString *name=[[[self infoDictionary] objectForKey:@"CFBundleExecutable"] stringByDeletingPathExtension];
+   NSString *name=[[self infoDictionary] objectForKey:@"CFBundleExecutable"];
    NSString *checkDir;
    NSArray  *contents;
    NSInteger       i,count;
@@ -702,12 +679,8 @@ static NSMapTable *pathToObject=NULL;
       return [checkDir stringByAppendingPathComponent:check];
     }
    }
-    if ([type isEqualToString:@"app"] == YES) {
-        return [[_path stringByAppendingPathComponent:name] stringByAppendingPathExtension:NSPlatformExecutableFileExtension];
-    }
-    else {
-        return [[_path stringByAppendingPathComponent:name] stringByAppendingPathExtension:NSPlatformLoadableObjectFileExtension];
-    }
+
+   return [[_path stringByAppendingPathComponent:name] stringByAppendingPathExtension:NSPlatformLoadableObjectFileExtension];
 }
 
 -(NSString *)executablePath {
@@ -719,26 +692,16 @@ static NSMapTable *pathToObject=NULL;
 }
 
 -(BOOL)load {
-    NSError *error = nil;
-    BOOL result = [self loadAndReturnError:&error]; 
-    
-    if (result == NO) {
-        NSLog(@"load of %@ FAILED [%@]", [self executablePath] , [error localizedDescription]);
-    }
-    
-    return result;
-}
-
--(BOOL)loadAndReturnError:(NSError **)error {
 	if(!_isLoaded){
 		NSString *load=[self executablePath];
-        
-        if(NSLoadModule([load fileSystemRepresentation], error) == NULL){
-            return NO;
-        }
+
+    if(NSLoadModule([load fileSystemRepresentation]) == NULL){
+     NSLog(@"load of %@ FAILED",load);
+     return NO;
     }
+   }
 	_isLoaded=YES;
-    return YES;
+   return YES;
 }
 
 -(BOOL)unload {
@@ -747,85 +710,17 @@ static NSMapTable *pathToObject=NULL;
 }
 
 -(NSArray *)lookInDirectories {
+   if (_lookInDirectories == nil)
+   {
+    // FIXME: This should be based on language preference order, and tested for presence in bundle before adding
 
-    if (_lookInDirectories == nil) {
-        NSLocale *cl = [NSLocale currentLocale];
-        NSFileManager *fm = [NSFileManager defaultManager];
-        NSMutableArray *validDirectories = [NSMutableArray array];
-
-        BOOL isDirectory = NO;
-        if (_resourcePath && [fm fileExistsAtPath:_resourcePath isDirectory:&isDirectory] && isDirectory) {
-            // Check if there's an override on the language preference.
-            NSString *localeid = nil;
-            NSString *language = nil;
-            NSString *longlang = nil;
-
-            // NSUserDefaults uses the NSBundle system during initialization so to avoid a recursion
-            // of doom we'll only check the preferred language once the defaults are available.
-            if ([NSUserDefaults standardUserDefaultsAvailable])
-                language = [[NSUserDefaults standardUserDefaults] objectForKey: @"PreferredLanguage"];
-            
-            if (language == nil || [language isEqualToString: @""]) {
-                // FIXME: This should be based on language preference order, and tested for presence in bundle before adding
-                localeid = [[cl objectForKey:NSLocaleIdentifier] stringByAppendingPathExtension:@"lproj"];
-                language = [cl objectForKey:NSLocaleLanguageCode];
-                if ([language isEqualToString: @"de"])
-                   longlang = @"German.lproj";
-                else if ([language isEqualToString: @"fr"])
-                   longlang = @"French.lproj";
-                else if ([language isEqualToString: @"jp"])
-                   longlang = @"Japanese.lproj";
-                // anything else, including 'en', would default to en.lproj or English.lproj anyway.
-            }
-
-            NSArray *lookInDirectories = nil;
-            if (localeid)
-               if (longlang)
-                  lookInDirectories = [NSArray arrayWithObjects:localeid, [language stringByAppendingPathExtension:@"lproj"], longlang, @"en.lproj", @"English.lproj", @"", nil];
-               else
-                  lookInDirectories = [NSArray arrayWithObjects:localeid, [language stringByAppendingPathExtension:@"lproj"], @"en.lproj", @"English.lproj", @"", nil];
-            else if ([language isEqualToString:@"English"])
-                lookInDirectories = [NSArray arrayWithObjects:@"English.lproj", @"en.lproj", @"", nil];
-            else
-                lookInDirectories = [NSArray arrayWithObjects:[language stringByAppendingPathExtension:@"lproj"], @"en.lproj", @"English.lproj", @"", nil];
-
-            for (NSString *proj in lookInDirectories) {
-                NSString *path = [_resourcePath stringByAppendingPathComponent:proj];
-                BOOL isDirectory = NO;
-                if ([fm fileExistsAtPath:path isDirectory:&isDirectory] && isDirectory) {
-                    [validDirectories addObject:proj];
-                }
-            }
-
-            if ([NSUserDefaults standardUserDefaultsAvailable] == YES) {
-                // Now it's safe to cache
-                _lookInDirectories = [validDirectories retain];
-            }
-        }
-        return validDirectories;
-    } else {
-        return _lookInDirectories;
-    }
-}
-
--(NSURL *)URLForResource:(NSString *)name withExtension:(NSString *)ext
-{
-    NSString *path = [self pathForResource: name ofType: ext inDirectory:nil];
-    
-    // attention: fileURLWithPath returns a non-nil object for nil input, we don't want that
-    return path ? [NSURL fileURLWithPath:path] : nil;
-}
-
--(NSURL *)URLForResource:(NSString *)name withExtension:(NSString *)ext subdirectory:(NSString *)subpath
-{
-    NSString *path = [self pathForResource: name ofType: ext inDirectory: subpath];
-    return [NSURL fileURLWithPath: path];
-}
-
--(NSURL *)URLForResource:(NSString *)name withExtension:(NSString *)ext subdirectory:(NSString *)subpath localization:(NSString *)localizationName
-{
-    NSString *path = [self pathForResource: name ofType: ext inDirectory: subpath forLocalization: localizationName];
-    return [NSURL fileURLWithPath: path];
+      NSString *language = [[NSLocale currentLocale] objectForKey:NSLocaleLanguageCode];
+      if ([language isEqualToString:@"English"])
+         _lookInDirectories = [[NSArray arrayWithObjects:@"English.lproj", @"en.lproj", @"", nil] retain];
+      else
+         _lookInDirectories = [[NSArray arrayWithObjects:[language stringByAppendingPathExtension:@"lproj"], @"English.lproj", @"en.lproj", @"", nil] retain];
+   }
+   return _lookInDirectories;
 }
 
 -(NSString *)pathForResourceFile:(NSString *)file inDirectory:(NSString *)directory {
@@ -856,8 +751,7 @@ static NSMapTable *pathToObject=NULL;
 		// Kill the type form the extension part if it's already there
 		name = [name stringByDeletingPathExtension];
 	}
-    
-#if 0 // Disabled - we don't use that and it's increasing the number of files to check for the resource
+
 	if(type && [type length]!=0)
     file=[[name stringByAppendingFormat:@"-%@",NSPlatformResourceNameSuffix] stringByAppendingPathExtension:type];
    else
@@ -865,7 +759,6 @@ static NSMapTable *pathToObject=NULL;
 
    if((path=[self pathForResourceFile:file inDirectory:directory])!=nil)
     return path;
-#endif
 
    if(type && [type length]!=0)
     file=[name stringByAppendingPathExtension:type];
@@ -901,7 +794,7 @@ static NSMapTable *pathToObject=NULL;
 	for(i=0;i<count;i++){
      NSString *check=[allFiles objectAtIndex:i];
 
-     if([type length] == 0 || [[check pathExtension] isEqualToString:type])
+     if(type==nil || [[check pathExtension] isEqualToString:type])
       [result addObject:[fullPath stringByAppendingPathComponent:check]];
 	}
 

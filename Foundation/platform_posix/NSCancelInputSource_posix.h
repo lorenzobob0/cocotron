@@ -11,9 +11,11 @@
 
 @class NSSocket;
 
-@interface NSCancelInputSource_posix : NSSelectInputSource {
-    NSSocket *_cancelRead;
-    NSSocket *_cancelWrite;
-    BOOL _hasCanceled;
+@interface NSCancelInputSource_posix : NSSelectInputSource
+{
+   NSSocket *_cancelRead;
+   NSSocket *_cancelWrite;
+   BOOL _hasCanceled;
 }
 @end
+

@@ -422,11 +422,6 @@ stbi_uc *stbi_bmp_load_from_memory (const stbi_uc *buffer, int len, int *x, int 
    [super dealloc];
 }
 
-- (CFStringRef)type
-{
-    return (CFStringRef)@"com.microsoft.bmp";
-}
-
 -(unsigned)count {
    return 1;
 }

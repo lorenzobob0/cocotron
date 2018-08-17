@@ -11,14 +11,6 @@
    return [[[self alloc] init] autorelease];
 }
 
-- (void)setOptions:(NSPrintPanelOptions)options {
-    _options = options;
-}
-
-- (NSPrintPanelOptions)options {
-    return _options;
-}
-
 -(int)runModal {
    int result;
    
@@ -44,6 +36,3 @@
 }
 
 @end
-
-NSString *const NSPrintPanelAccessorySummaryItemNameKey = @"NSPrintPanelAccessorySummaryItemName";
-NSString *const NSPrintPanelAccessorySummaryItemDescriptionKey = @"NSPrintPanelAccessorySummaryItemDescription";

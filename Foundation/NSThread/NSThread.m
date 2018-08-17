@@ -24,12 +24,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSSelectSet.h>
 #include <pthread.h>
 
-#if defined(LINUX) ||  defined(__APPLE__) ||  defined(FREEBSD)
-#include <execinfo.h>
-#include <sys/resource.h>
-#endif
-
-
 NSString * const NSDidBecomeSingleThreadedNotification=@"NSDidBecomeSingleThreadedNotification";
 NSString * const NSWillBecomeMultiThreadedNotification=@"NSWillBecomeMultiThreadedNotification";
 NSString * const NSThreadWillExitNotification=@"NSThreadWillExitNotification";
@@ -77,8 +71,7 @@ static NSThread* mainThread = nil;
 }
 
 #ifdef WINDOWS
-// Be sure the stack is aligned in case the thread wants to do exotic things like SSE2
-static  __attribute__((force_align_arg_pointer)) unsigned __stdcall nsThreadStartThread(void* t)
+static  unsigned __stdcall nsThreadStartThread(void* t)
 #else
 static void *nsThreadStartThread(void* t)
 #endif
@@ -87,15 +80,9 @@ static void *nsThreadStartThread(void* t)
 	NSPlatformSetCurrentThread(thread);
 	[thread setExecuting:YES];
     NSCooperativeThreadWaiting();
-	@try {
-		[thread main];
-	}
-	@catch (NSException * e) {
-        NSLog(@"Exception occured : %@", [e description]);
-	}
+   [thread main];
 	[thread setExecuting:NO];
 	[thread setFinished:YES];
-
     NSSelectSetShutdownForCurrentThread();
 	
 	// We need a pool here in case release triggers some autoreleased object allocations
@@ -119,30 +106,9 @@ static void *nsThreadStartThread(void* t)
 }
 
 +(NSArray *)callStackReturnAddresses {
-    NSMutableArray *ret=[NSMutableArray array];
+extern id _NSStackTrace();
 
-    void* callstack[128];
-    int i, frameCount = backtrace(callstack, 128);
-    //ignore current frame
-    for (i = 1; i < frameCount; i++) {
-        [ret addObject:[NSValue valueWithPointer:callstack[i]]];
-    }
-    
-    return ret;
-}
-
-+(NSArray *)callStackSymbols {
-    NSMutableArray *ret=[NSMutableArray array];
-    void* callstack[128];
-    int i, frameCount = backtrace(callstack, 128);
-    char** symbols = backtrace_symbols(callstack, frameCount);
-    //ignore current frame
-    for (i = 1; i < frameCount; ++i) {
-        [ret addObject:[NSString stringWithCString:callstack[i] encoding:NSISOLatin1StringEncoding]];
-    }
-    free(symbols);
-    
-    return ret;
+   return _NSStackTrace();
 }
 
 +(double)threadPriority {
@@ -227,12 +193,12 @@ static void *nsThreadStartThread(void* t)
    // if we were init'ed before didBecomeMultithreaded, we won't have a lock either
    if(!_sharedObjectLock)
       _sharedObjectLock=[NSLock new];
-    NSError *error = nil;
-	if (NSPlatformDetachThread( &nsThreadStartThread, self, &error) == 0) {
+
+	if (NSPlatformDetachThread( &nsThreadStartThread, self) == 0) {
 		// No thread has been created. Don't leak:
 		[self release];
 		[NSException raise: @"NSThreadCreationFailedException"
-					format: @"Creation of Objective-C thread failed [%@].", error];
+					format: @"Creation of Objective-C thread failed."];
 	}
 }
 
@@ -347,6 +313,22 @@ NSAutoreleasePool *NSThreadCurrentPool(void) {
 
 void NSThreadSetCurrentPool(NSAutoreleasePool *pool){
    NSPlatformCurrentThread()->_currentPool=pool;
+}
+
+NSExceptionFrame *NSThreadCurrentHandler(void) {
+   return NSPlatformCurrentThread()->_currentHandler;
+}
+
+void NSThreadSetCurrentHandler(NSExceptionFrame *handler) {
+   NSPlatformCurrentThread()->_currentHandler=handler;
+}
+
+NSUncaughtExceptionHandler *NSThreadUncaughtExceptionHandler(void) {
+   return NSPlatformCurrentThread()->_uncaughtExceptionHandler;
+}
+
+void NSThreadSetUncaughtExceptionHandler(NSUncaughtExceptionHandler *function) {
+   NSPlatformCurrentThread()->_uncaughtExceptionHandler=function;
 }
 
 @end

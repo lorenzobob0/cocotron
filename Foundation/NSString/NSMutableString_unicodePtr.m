@@ -27,20 +27,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    return _length;
 }
 
--(NSUInteger)lengthOfBytesUsingEncoding:(NSStringEncoding)encoding {
-    switch (encoding) {
-        case NSUTF8StringEncoding:
-            return NSConvertUTF16toUTF8(_unicode, _length,NULL);
-        case NSUnicodeStringEncoding:
-            return _length;
-            
-        default:
-            NSUnimplementedMethod();
-            NSLog(@"For encoding: %i", encoding);
-            return 0;
-    }
-}
-
 -(unichar)characterAtIndex:(NSUInteger)location {
    if(location>=_length){
     NSRaiseException(NSRangeException,self,_cmd,@"index %d beyond length %d",
@@ -51,7 +37,10 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 -(void)getCharacters:(unichar *)buffer {
-    memcpy(buffer, _unicode, _length*sizeof(unichar));
+   NSInteger i;
+
+   for(i=0;i<_length;i++)
+    buffer[i]=_unicode[i];
 }
 
 -(void)getCharacters:(unichar *)buffer range:(NSRange)range {
@@ -62,8 +51,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
      NSStringFromRange(range),[self length]);
    }
 
-    memcpy(buffer, _unicode+loc, range.length*sizeof(unichar));
-
+   for(i=0;i<range.length;i++)
+    buffer[i]=_unicode[loc+i];
 }
 
 -(void)replaceCharactersInRange:(NSRange)range withString:(NSString *)string {
@@ -161,19 +150,15 @@ NSMutableString_unicodePtr *NSMutableString_unicodePtrInitWithCapacity(NSMutable
 NSString *NSMutableString_unicodePtrNewWithCString(NSZone *zone,
  const char *cString,NSUInteger length) {
    NSMutableString_unicodePtr *self=NSAllocateObject(objc_lookUpClass("NSMutableString_unicodePtr"),0,zone);
-    if (self) {
-        self = NSMutableString_unicodePtrInitWithCString(self,cString,length,zone);
-    }
-    return self;
+
+   return NSMutableString_unicodePtrInitWithCString(self,cString,length,zone);
 }
 
 NSString *NSMutableString_unicodePtrNew(NSZone *zone,
  const unichar *unicode,NSUInteger length) {
    NSMutableString_unicodePtr *self=NSAllocateObject(objc_lookUpClass("NSMutableString_unicodePtr"),0,zone);
-    if (self) {
-        self = NSMutableString_unicodePtrInit(self,unicode,length,zone);
-    }
-    return self;
+
+   return NSMutableString_unicodePtrInit(self,unicode,length,zone);
 }
 
 NSString *NSMutableString_unicodePtrNewNoCopy(NSZone *zone,
@@ -181,10 +166,8 @@ NSString *NSMutableString_unicodePtrNewNoCopy(NSZone *zone,
    NSMutableString_unicodePtr *self;
 
    self=NSAllocateObject(objc_lookUpClass("NSMutableString_unicodePtr"),0,zone);
-    if (self) {
-        self = NSMutableString_unicodePtrInitNoCopy(self,unicode,length,zone);
-    }
-    return self;
+
+   return NSMutableString_unicodePtrInitNoCopy(self,unicode,length,zone);
 }
 
 NSString *NSMutableString_unicodePtrNewWithCapacity(NSZone *zone,
@@ -192,10 +175,8 @@ NSString *NSMutableString_unicodePtrNewWithCapacity(NSZone *zone,
    NSMutableString_unicodePtr *self;
 
    self=NSAllocateObject(objc_lookUpClass("NSMutableString_unicodePtr"),0,zone);
-    if (self) {
-       self = NSMutableString_unicodePtrInitWithCapacity(self,capacity,zone);
-    }
-    return self;
+
+   return NSMutableString_unicodePtrInitWithCapacity(self,capacity,zone);
 }
 
 -(void)dealloc {
@@ -258,17 +239,11 @@ NSString *NSMutableString_unicodePtrNewWithCapacity(NSZone *zone,
 - initWithString:(NSString *)string
 {
     NSUInteger length = [string length];
-    unichar *unicode = NSZoneMalloc(NULL, sizeof(unichar)*length);
-    if (unicode) {
-        [string getCharacters:unicode];
-        
-        self = NSMutableString_unicodePtrInit(self, unicode, length, NSZoneFromPointer(self));
-        free(unicode);
-    } else {
-        [self release];
-        self = nil;
-    }
-    return self;
+    unichar  unicode[length];
+
+    [string getCharacters:unicode];
+
+    return NSMutableString_unicodePtrInit(self, unicode, length, NSZoneFromPointer(self));
 }
 
 

@@ -54,9 +54,6 @@ NSString * const NSWindowWillAnimateNotification=@"NSWindowWillAnimateNotificati
 NSString * const NSWindowAnimatingNotification=@"NSWindowAnimatingNotification";
 NSString * const NSWindowDidAnimateNotification=@"NSWindowDidAnimateNotification";
 
-@interface CGWindow(private)
-- (void)dirtyRect:(CGRect)rect;
-@end
 
 @interface NSToolbar (NSToolbar_privateForWindow)
 - (void)_setWindow:(NSWindow *)window;
@@ -225,7 +222,7 @@ NSString * const NSWindowDidAnimateNotification=@"NSWindowDidAnimateNotification
    _styleMask=styleMask;
 
     _frame=[self frameRectForContentRect:contentRect];
-    _frame=[self constrainFrameRect: _frame toScreen: [NSScreen mainScreen]];
+   
    backgroundFrame.origin=NSMakePoint(0,0);
    backgroundFrame.size=_frame.size;
    contentViewFrame=[self contentRectForFrameRect:backgroundFrame];
@@ -266,8 +263,7 @@ NSString * const NSWindowDidAnimateNotification=@"NSWindowDidAnimateNotification
 
    _delegate=nil;
    _firstResponder=self;
-   _sharedFieldEditor=nil;
-   _currentFieldEditor=nil;
+   _fieldEditor=nil;
    _draggedTypes=nil;
 
    _trackingAreas=nil;
@@ -289,8 +285,6 @@ NSString * const NSWindowDidAnimateNotification=@"NSWindowDidAnimateNotification
    _hidesOnDeactivate=NO;
    _viewsNeedDisplay=YES;
    _flushNeeded=YES;
-
-   _isInLiveResize=NO;
 
    _resizeIncrements=NSMakeSize(1,1);
    _contentResizeIncrements=NSMakeSize(1,1);
@@ -333,7 +327,7 @@ NSString * const NSWindowDidAnimateNotification=@"NSWindowDidAnimateNotification
    [_menuView release];
    [_contentView release];
    [_backgroundColor release];
-   [_sharedFieldEditor release];
+   [_fieldEditor release];
    [_draggedTypes release];
    [_trackingAreas release];
    [_autosaveFrameName release];
@@ -655,7 +649,7 @@ NSString * const NSWindowDidAnimateNotification=@"NSWindowDidAnimateNotification
 }
 
 -(BOOL)preservesContentDuringLiveResize {
-   return NO;
+   return _preservesContentDuringLiveResize;
 }
 
 -(NSToolbar *)toolbar {
@@ -693,8 +687,6 @@ NSString * const NSWindowDidAnimateNotification=@"NSWindowDidAnimateNotification
     { NSWindowDidResignKeyNotification,@selector(windowDidResignKey:) },
     { NSWindowDidResignMainNotification,@selector(windowDidResignMain:) },
     { NSWindowDidResizeNotification,@selector(windowDidResize:) },
-    { NSWindowWillStartLiveResizeNotification,@selector(windowWillStartLiveResize:) },
-    { NSWindowDidEndLiveResizeNotification,@selector(windowDidEndLiveResize:) },
     { NSWindowDidUpdateNotification,@selector(windowDidUpdate:) },
     { NSWindowWillCloseNotification,@selector(windowWillClose:) },
     { NSWindowWillMiniaturizeNotification,@selector(windowWillMiniaturize:) },
@@ -803,9 +795,9 @@ NSString * const NSWindowDidAnimateNotification=@"NSWindowDidAnimateNotification
      frame.origin.y=virtual.origin.y-frame.size.height;
     }
 
-    if(changed)
+    if(changed){
      [self setFrame:frame display:YES];
-
+    }
     _makeSureIsOnAScreen=NO;
    }
 #endif
@@ -873,18 +865,20 @@ NSString * const NSWindowDidAnimateNotification=@"NSWindowDidAnimateNotification
    _makeSureIsOnAScreen=YES;
 
    [_backgroundView setFrameSize:_frame.size];
-    
+
     [[self platformWindow] setFrame:_frame];
-    
+
    if(didSize)
     [self resetCursorRects];
     
-   if(didSize)
+   if(didSize){
     [self postNotificationName:NSWindowDidResizeNotification];
+   }
     
-   if(didMove)
+   if(didMove){
     [self postNotificationName:NSWindowDidMoveNotification];
-
+   }
+    
 // If you setFrame:display:YES before rearranging views with only setFrame: calls (which do not mark the view for display)
 // Cocoa will properly redisplay the views
 // So, doing a hard display right here is not the right thing to do, delay it 
@@ -1080,6 +1074,7 @@ NSString * const NSWindowDidAnimateNotification=@"NSWindowDidAnimateNotification
    [toolbarView setFrameOrigin:toolbarOrigin];
 
    [[self contentView] setAutoresizingMask:NSViewNotSizable];
+
    [self setFrame:frame display:NO animate:NO];
    
    [[self contentView] setAutoresizingMask:mask];
@@ -1186,7 +1181,7 @@ NSString * const NSWindowDidAnimateNotification=@"NSWindowDidAnimateNotification
 }
 
 -(void)setPreservesContentDuringLiveResize:(BOOL)value {
-  // _preservesContentDuringLiveResize=value;
+   _preservesContentDuringLiveResize=value;
 }
 
 -(void)setRepresentedFilename:(NSString *)value {
@@ -1319,10 +1314,7 @@ NSString * const NSWindowDidAnimateNotification=@"NSWindowDidAnimateNotification
 }
 
 -(NSResponder *)firstResponder {
-   if ([_firstResponder isKindOfClass:[NSDrawer class]])
-    return [_firstResponder nextResponder];
-   else
-    return _firstResponder;
+   return _firstResponder;
 }
 
 -(NSButton *)standardWindowButton:(NSWindowButton)value {
@@ -1433,7 +1425,8 @@ NSString * const NSWindowDidAnimateNotification=@"NSWindowDidAnimateNotification
 }
 
 -(BOOL)inLiveResize {
-   return _isInLiveResize;
+   NSUnimplementedMethod();
+   return NO;
 }
 
 -(BOOL)canBecomeKeyWindow {
@@ -1571,8 +1564,7 @@ NSString * const NSWindowDidAnimateNotification=@"NSWindowDidAnimateNotification
 
 -(BOOL)makeFirstResponder:(NSResponder *)responder {
 
-   if(_firstResponder==responder || 
-      ([responder isKindOfClass:[NSControl class]] && _firstResponder==[(NSControl *)responder currentEditor]))
+   if(_firstResponder==responder)
     return YES;
 
    if(![_firstResponder resignFirstResponder])
@@ -1601,9 +1593,9 @@ NSString * const NSWindowDidAnimateNotification=@"NSWindowDidAnimateNotification
             [self makeFirstResponder:[self initialFirstResponder]];
         else {
             // otherwise calculate one and set the first responder
-            if ([self autorecalculatesKeyViewLoop]) {
-                [self recalculateKeyViewLoop];
-            }
+            
+            [self recalculateKeyViewLoop];
+            
             if([self firstResponder]==self)
                 [self makeFirstResponder:[_contentView nextValidKeyView]];
         }
@@ -1734,39 +1726,26 @@ NSString * const NSWindowDidAnimateNotification=@"NSWindowDidAnimateNotification
 }
 
 -(NSText *)fieldEditor:(BOOL)create forObject:object {
-   NSTextView *newFieldEditor = nil;
-   if([_delegate respondsToSelector:@selector(windowWillReturnFieldEditor:toObject:)])
-      newFieldEditor = [_delegate windowWillReturnFieldEditor:self toObject:object];
-   
-   if(create && newFieldEditor == nil && _sharedFieldEditor == nil)
-      newFieldEditor = _sharedFieldEditor = [[NSTextView alloc] init];
-   
-   if (newFieldEditor)
-      _currentFieldEditor = newFieldEditor;   
-   else
-      _currentFieldEditor = _sharedFieldEditor;
-   
-   if (_currentFieldEditor) {
-      [_currentFieldEditor setHorizontallyResizable:NO];
-      [_currentFieldEditor setVerticallyResizable:NO];
-      [_currentFieldEditor setFieldEditor:YES];
-      [_currentFieldEditor setAutoresizingMask:NSViewWidthSizable|NSViewHeightSizable];
+   if(create && _fieldEditor==nil){
+    _fieldEditor=[[NSTextView alloc] init];
    }
-   
-   return _currentFieldEditor;
+
+   [_fieldEditor setHorizontallyResizable:NO];
+   [_fieldEditor setVerticallyResizable:NO];
+   [_fieldEditor setFieldEditor:YES];
+   [_fieldEditor setAutoresizingMask:NSViewWidthSizable|NSViewHeightSizable];
+
+   return _fieldEditor;
 }
 
 -(void)endEditingFor:object {
-   if (_currentFieldEditor) {
-      if ((NSResponder *)_currentFieldEditor == _firstResponder) {
-         _firstResponder = object;
-         [_currentFieldEditor resignFirstResponder];
-      }
-      [_currentFieldEditor setDelegate:nil];
-      [_currentFieldEditor removeFromSuperview];
-      [_currentFieldEditor setString:@""];
-      _currentFieldEditor = nil;
+   if((NSResponder *)_fieldEditor==_firstResponder){
+    _firstResponder=self;
+    [_fieldEditor resignFirstResponder];
    }
+   [_fieldEditor setDelegate:nil];
+   [_fieldEditor removeFromSuperview];
+   [_fieldEditor setString:@""];
 }
 
 -(void)disableScreenUpdatesUntilFlush {
@@ -1812,9 +1791,8 @@ NSString * const NSWindowDidAnimateNotification=@"NSWindowDidAnimateNotification
      doFlush=NO;
      }
     
-       if(doFlush) {
-           [[self platformWindow] flushBuffer];
-       }
+    if(doFlush)
+     [[self platformWindow] flushBuffer];
    }
 }
 
@@ -1998,7 +1976,7 @@ NSString * const NSWindowDidAnimateNotification=@"NSWindowDidAnimateNotification
        [_drawers makeObjectsPerformSelector:@selector(parentWindowDidClose:) withObject:self];
 
    [self postNotificationName:NSWindowWillCloseNotification];
-    
+
    if(_releaseWhenClosed)
     [self autorelease];
 }
@@ -2112,11 +2090,6 @@ NSString * const NSWindowDidAnimateNotification=@"NSWindowDidAnimateNotification
 }
 
 -(void)sendEvent:(NSEvent *)event {
-    
-    // Some events can cause our window to be destroyed
-    // So make sure self lives at least through this current run loop...
-    [[self retain] autorelease];
-
     if (_sheetContext != nil) {
         NSView *view = [_backgroundView hitTest:[event locationInWindow]];
 
@@ -2150,7 +2123,6 @@ NSString * const NSWindowDidAnimateNotification=@"NSWindowDidAnimateNotification
         }
     }
 
-    BOOL shouldValidateToolbarItems = YES;
 	// OK let's see if anyone else wants it
    switch([event type]){
 
@@ -2158,14 +2130,14 @@ NSString * const NSWindowDidAnimateNotification=@"NSWindowDidAnimateNotification
         NSView *view=[_backgroundView hitTest:[event locationInWindow]];
         
         if([view acceptsFirstResponder]){
-            if([view needsPanelToBecomeKey]) {
-                [self makeFirstResponder:view];
-            }
+            if([view needsPanelToBecomeKey])
+             [self makeFirstResponder:view];
         }
         
         // Event goes to view, not first responder
         [view mouseDown:event];
-        _mouseDownLocationInWindow=[event locationInWindow];
+
+      _mouseDownLocationInWindow=[event locationInWindow];
      }
      break;
 
@@ -2230,20 +2202,10 @@ NSString * const NSWindowDidAnimateNotification=@"NSWindowDidAnimateNotification
      [[_backgroundView hitTest:[event locationInWindow]] scrollWheel:event];
      break;
 
-    case NSAppKitDefined:
-     // Nothing special to do
-     break;
-           
     default:
-     shouldValidateToolbarItems = NO;
      NSUnimplementedMethod();
      break;
    }
-    if (shouldValidateToolbarItems && [self toolbar]) {
-        [NSObject cancelPreviousPerformRequestsWithTarget:[self toolbar] selector:@selector(validateVisibleItems) object:nil];
-        [[self toolbar] performSelector:@selector(validateVisibleItems) withObject:nil afterDelay:.5];
-
-    }
 }
 
 -(void)postEvent:(NSEvent *)event atStart:(BOOL)atStart {
@@ -2297,9 +2259,11 @@ NSString * const NSWindowDidAnimateNotification=@"NSWindowDidAnimateNotification
    else
       topLeftPoint.y = frame.origin.y + frame.size.height;
    
-   if (reposition)
+   if (reposition){
       [self setFrame:frame display:YES];
 
+   }
+    
    return topLeftPoint;
 }
 
@@ -2330,7 +2294,6 @@ NSString * const NSWindowDidAnimateNotification=@"NSWindowDidAnimateNotification
 }
 
 -(void)update {
-    [[self toolbar] validateVisibleItems];
    [[NSNotificationCenter defaultCenter]
        postNotificationName:NSWindowDidUpdateNotification
                      object:self];
@@ -2564,6 +2527,7 @@ NSString * const NSWindowDidAnimateNotification=@"NSWindowDidAnimateNotification
     frame=[self frame];
     frame.size.height+=(newSize.height-oldSize.height);
     // no display because setMenu: is called before awakeFromNib
+
     [self setFrame:frame display:NO];
     // do we even need this?
     [_backgroundView setNeedsDisplay:YES]; 
@@ -2815,17 +2779,21 @@ NSString * const NSWindowDidAnimateNotification=@"NSWindowDidAnimateNotification
    [_childWindows makeObjectsPerformSelector:@selector(_parentWindowDidChangeFrame:) withObject:self];
    [_drawers makeObjectsPerformSelector:@selector(parentWindowDidChangeFrame:) withObject:self];
 
-   if (didSize) {
-    // Don't redraw everything unless we really have to
-    [_backgroundView setFrameSize:_frame.size];
-    [_backgroundView setNeedsDisplay:YES];
-    [self resetCursorRects];
-    [self saveFrameUsingName:_autosaveFrameName];
+	if (didSize) {
+		// Don't redraw everything unless we really have to
+		[_backgroundView setFrameSize:_frame.size];
+		[_backgroundView setNeedsDisplay:YES];
+		
+		// And make sure the cursor rect align with the new size
+		[self resetCursorRects];
+	}
+
+   [self saveFrameUsingName:_autosaveFrameName];
+   
+   if(didSize){
     [self postNotificationName:NSWindowDidResizeNotification];
    }
-   else
-   {
-    [self saveFrameUsingName:_autosaveFrameName];
+   else{
     [self postNotificationName:NSWindowDidMoveNotification];
    }
 }
@@ -2858,13 +2826,11 @@ NSString * const NSWindowDidAnimateNotification=@"NSWindowDidAnimateNotification
 
 -(void)platformWindowWillBeginSizing:(CGWindow *)window {
    [self postNotificationName:NSWindowWillStartLiveResizeNotification];
-    _isInLiveResize=YES;
    [_backgroundView viewWillStartLiveResize];
 }
 
 -(void)platformWindowDidEndSizing:(CGWindow *)window {
-   _isInLiveResize=NO;
-   [_backgroundView viewDidEndLiveResize];
+	[_backgroundView viewDidEndLiveResize];
    [self postNotificationName:NSWindowDidEndLiveResizeNotification];
 }
 
@@ -2942,15 +2908,12 @@ NSString * const NSWindowDidAnimateNotification=@"NSWindowDidAnimateNotification
 			   } else {
 				   tooltip = [owner description];
 			   }
-               
-               if (tooltip) {
-                   [toolTipWindow setToolTip:tooltip];
-                   
-                   // This gives us some protection when ToolTip areas overlap:
-                   [toolTipWindow _setTrackingArea:area];
-                   
-                   raiseToolTipWindow=YES;
-               }
+			   [toolTipWindow setToolTip:tooltip];
+			   
+			   // This gives us some protection when ToolTip areas overlap:
+			   [toolTipWindow _setTrackingArea:area];
+			   
+			   raiseToolTipWindow=YES;
 		   }
 	   }
 	   else{ // not ToolTip
@@ -3156,9 +3119,5 @@ NSString * const NSWindowDidAnimateNotification=@"NSWindowDidAnimateNotification
     return _backgroundView;
 }
 
--(void)dirtyRect:(NSRect)rect
-{
-    [[self platformWindow] dirtyRect:rect];
-}
 @end
 

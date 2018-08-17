@@ -1,4 +1,3 @@
-#ifdef WINDOWS
 #import "NSRunLoopState_windows.h"
 #import <Foundation/NSArray.h>
 #import <Foundation/NSSelectInputSourceSet.h>
@@ -25,4 +24,3 @@
 }
 
 @end
-#endif

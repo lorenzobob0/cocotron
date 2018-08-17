@@ -8,8 +8,9 @@
 
 #import "Demo.h"
 
+
 @interface DemoAffineImages : Demo {
-    CGImageRef _image;
+   CGImageRef _image;
 }
 
 @end

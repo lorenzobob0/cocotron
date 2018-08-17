@@ -19,13 +19,10 @@ O2Surface *O2LayerGetSurface(O2LayerRef self) {
 
 O2LayerRef O2LayerCreateWithContext(O2ContextRef context,O2Size size,NSDictionary *unused) {
    O2LayerRef self=NSAllocateObject([O2Layer class],0,NULL);
-
-    if (self) {
-       self->_context=[context createCompatibleContextWithSize:size unused:unused];
-       self->_size=size;
-       self->_unused=[unused copy];
-       self->_surface=[context surface];
-    }
+   self->_context=[context createCompatibleContextWithSize:size unused:unused];
+   self->_size=size;
+   self->_unused=[unused copy];
+   self->_surface=[context surface];
    return self;
 }
 

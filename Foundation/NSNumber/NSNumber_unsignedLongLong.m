@@ -12,10 +12,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 NSNumber *NSNumber_unsignedLongLongNew(NSZone *zone,unsigned long long value) {
    NSNumber_unsignedLongLong *self=NSAllocateObject([NSNumber_unsignedLongLong class],0,zone);
-    if (self) {
-       self->_type=kCFNumberLongLongType;
-       self->_value=value;
-    }
+   self->_type=kCFNumberLongLongType;
+   self->_value=value;
    return self;
 }
 

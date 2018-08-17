@@ -185,17 +185,6 @@ static NSString * const NSPopUpButtonBindingObservationContext=@"NSPopUpButtonBi
    return [_cell itemTitles];
 }
 
-- (void)setTitle:(NSString *)title
-{
-    if ([self pullsDown]) {
-        // The title gets stored in the zero index item in the menu - it made sense to Apple at some point...
-        [[_cell itemAtIndex: 0] setTitle: title];
-        [self synchronizeTitleAndSelectedItem];
-    } else {
-        [super setTitle: title];
-    }
-}
-
 -(void)synchronizeTitleAndSelectedItem {
    [_cell synchronizeTitleAndSelectedItem];
    [self setNeedsDisplay:YES];
@@ -282,11 +271,23 @@ static NSString * const NSPopUpButtonBindingObservationContext=@"NSPopUpButtonBi
 @implementation NSPopUpButton (BindingSupport)
 
 -(void)_setItemValues:(NSArray *)values forKey:(NSString *)key {
+// We access items through the menu becuase NSPopUpButtonCell item editing has undesireable behavior 
+   NSMenu   *menu=[self menu];
+   NSInteger i,count=[values count],numberOfItems=[menu numberOfItems];
 
-    [_cell removeAllItems];
-    [_cell addItemsWithTitles:values];
+   for(i=0;i<count;i++){
+    if(i>=numberOfItems){
+     [menu addItemWithTitle:@"" action:NULL keyEquivalent:nil];
+     numberOfItems++;
+    }
     
-	if ([self indexOfSelectedItem] >= values.count) {
+    [[menu itemAtIndex:i] setValue:[values objectAtIndex:i] forKey:key];
+   }
+	// Remove any additional unwanted item
+	while (numberOfItems > count) {
+		[menu removeItemAtIndex:--numberOfItems];
+	}
+	if ([self indexOfSelectedItem] >= count) {
 		[self selectItem:nil];
 	}
 	[self synchronizeTitleAndSelectedItem];

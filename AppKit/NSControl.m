@@ -135,11 +135,6 @@ static NSMutableDictionary *cellClassDictionary = nil;
    return [_cell isContinuous];
 }
 
--(BOOL)needsPanelToBecomeKey {
-    // The Apple way
-    return [_cell isSelectable];
-}
-
 -(BOOL)refusesFirstResponder {
    return [_cell refusesFirstResponder];
 }
@@ -361,7 +356,9 @@ static NSMutableDictionary *cellClassDictionary = nil;
 -(void)updateCell:(NSCell *)cell {
     if (_cell == cell)
 	{
-            [self setNeedsDisplay:YES];
+		[self willChangeValueForKey:@"objectValue"];
+		[self didChangeValueForKey:@"objectValue"];
+        [self setNeedsDisplay:YES];
 	}
 }
 
@@ -475,7 +472,7 @@ static NSMutableDictionary *cellClassDictionary = nil;
      object:self userInfo:[NSDictionary dictionaryWithObject:[note object] forKey:@"NSFieldEditor"]];
   
    // If this control's value is bound to an object that conforms to NSEditorRegistration, register as an editor.
-   NSDictionary * bindingInfo = nil; // [self infoForBinding:@"value"];
+   NSDictionary * bindingInfo = [self infoForBinding:@"value"];
    if (bindingInfo)
      {
        id observedObject = [bindingInfo objectForKey:NSObservedObjectKey];
@@ -507,7 +504,7 @@ static NSMutableDictionary *cellClassDictionary = nil;
      object:self userInfo:[NSDictionary dictionaryWithObject:[note object] forKey:@"NSFieldEditor"]];
 
    // If this control's value is bound to an object that conforms to NSEditorRegistration, unregister as an editor.
-   NSDictionary * bindingInfo = nil; // [self infoForBinding:@"value"];
+   NSDictionary * bindingInfo = [self infoForBinding:@"value"];
    if (bindingInfo)
      {
        id observedObject = [bindingInfo objectForKey:NSObservedObjectKey];

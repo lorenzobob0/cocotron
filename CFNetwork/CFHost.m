@@ -10,10 +10,7 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #include <process.h>
-#else
-#include <sys/param.h>
 #endif
-
 #include <pthread.h>
 
 #if defined(WIN32) || defined(LINUX)
@@ -158,7 +155,7 @@ static struct addrinfo *blockingRequest(CFHostRequest *request){
    return result;
 }
 
-static __stdcall unsigned addressResolverThread(void *arg){
+static unsigned addressResolverThread(void *arg){
    CFAddressResolverThreadInfo *info=(CFAddressResolverThreadInfo *)arg;
 
    while(YES){
@@ -290,6 +287,7 @@ static CFAddressResolverThreadInfo *startResolverThreadIfNeeded(){
    asyncInfo->queue=NSZoneMalloc(NULL,sizeof(CFHostRequest *)*asyncInfo->queueCapacity);
 
    unsigned threadAddr;
+
    _beginthreadex(NULL,0,addressResolverThread,asyncInfo,0,&threadAddr);
   }
   pthread_mutex_unlock(&asyncCreationLock);

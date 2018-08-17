@@ -12,7 +12,9 @@
 
 @class NSNotification;
 
-@interface _NSTextBinder : _NSCachingBinder {
+@interface _NSTextBinder : _NSCachingBinder 
+{
+
 }
 
 - (void)textDidChange:(NSNotification *)note;

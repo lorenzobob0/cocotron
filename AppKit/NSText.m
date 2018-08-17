@@ -222,10 +222,6 @@ NSString * const NSTextDidChangeNotification=@"NSTextDidChangeNotification";
    NSInvalidAbstractInvocation();
 }
 
--(void)changeFont:sender {
-    NSInvalidAbstractInvocation();
-}
-
 - (void)alignCenter:sender {
    NSInvalidAbstractInvocation();
 }

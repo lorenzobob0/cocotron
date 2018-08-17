@@ -20,7 +20,6 @@
 #import <AppKit/O2Font_FT.h>
 #import <AppKit/NSFontManager.h>
 #import <AppKit/NSFontTypeface.h>
-#import <AppKit/NSWindow.h>
 #import <fcntl.h>
 #import <fontconfig.h>
 #import <X11/Xutil.h>
@@ -142,6 +141,8 @@ static int errorHandler(Display *display,XErrorEvent *errorEvent) {
       return [NSColor blueColor];
    if([colorName isEqual:@"selectedControlTextColor"])
       return [NSColor blackColor];
+   
+   NSLog(@"%@", colorName);
    
    return [NSColor redColor];
    
@@ -331,16 +332,6 @@ static int errorHandler(Display *display,XErrorEvent *errorEvent) {
    return ret;
 }
 
-NSArray *CGSOrderedWindowNumbers() {
-    NSMutableArray *result = [NSMutableArray array];
-    
-    for (NSWindow* win in [NSApp windows]) [result addObject:[NSNumber numberWithInteger:[win windowNumber]]];
-    
-    NSUnimplementedFunction(); //(Window numbers not even remotely ordered)
-    
-    return result;
-}
-
 -(void)postXEvent:(XEvent *)ev {
    id event=nil;
    NSEventType type;
@@ -451,7 +442,7 @@ NSArray *CGSOrderedWindowNumbers() {
       [lastFocusedWindow platformWindowDeactivated:window checkForAppDeactivation:NO];
       lastFocusedWindow=nil;  
      }
-     [delegate platformWindowActivated:window displayIfNeeded:YES];
+     [delegate platformWindowActivated:window];
      lastFocusedWindow=delegate;
      break;
      
@@ -602,11 +593,11 @@ NSArray *CGSOrderedWindowNumbers() {
 
 @implementation NSGraphicsStyle (Overrides) 
 -(void)drawMenuBranchArrowInRect:(NSRect)rect selected:(BOOL)selected {
-    NSImage* arrow=[NSImage imageNamed:@"NSMenuArrow"];
-    // ??? magic numbers
-    rect.origin.y+=5;
-    rect.origin.x-=2;
-    [arrow drawInRect:rect fromRect:NSZeroRect operation:NSCompositeSourceOver fraction:1.0];
+   NSImage* arrow=[NSImage imageNamed:@"NSMenuArrow"];
+   // ??? magic numbers
+   rect.origin.y+=5;
+   rect.origin.x-=2;
+   [arrow drawInRect:rect operation:NSCompositeSourceOver];
 }
 
 @end

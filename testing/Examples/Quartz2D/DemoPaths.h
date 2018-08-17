@@ -8,7 +8,9 @@
 
 #import <Cocoa/Cocoa.h>
 
+
 @interface DemoPaths : NSObject {
+
 }
 
 @end

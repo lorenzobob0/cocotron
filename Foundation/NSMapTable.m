@@ -8,7 +8,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSMapTable.h>
 #import <Foundation/NSArray.h>
 #import <Foundation/NSString.h>
-#import <Foundation/NSZone.h>
 #import <Foundation/NSEnumerator_dictionaryKeys.h>
 
 @implementation NSMapTable
@@ -178,7 +177,7 @@ void NSFreeMapTable(NSMapTable *table){
    NSZoneFree(zone,table->buckets);
    NSZoneFree(zone,table->keyCallBacks);
    NSZoneFree(zone,table->valueCallBacks);
-   NSDeallocateObject(table);
+   NSZoneFree(zone,table);
 }
 
 void NSResetMapTable(NSMapTable *table){
@@ -237,7 +236,7 @@ void *NSMapGet(NSMapTable *table,const void *key){
    NSMapNode *j;
 
    for(j=table->buckets[i];j!=NULL;j=j->next)
-    if(j->key == key || table->keyCallBacks->isEqual(table,j->key,key))
+    if(table->keyCallBacks->isEqual(table,j->key,key))
      return j->value;
 
    return NULL;
@@ -421,36 +420,16 @@ NSString *NSStringFromMapTable(NSMapTable *table){
    return string;
 }
 
-+mapTableWithStrongToStrongObjects {
-    return [NSCreateMapTable(NSObjectMapKeyCallBacks,NSObjectMapValueCallBacks,0) autorelease];
-}
-
-+mapTableWithStrongToWeakObjects {
-    return [NSCreateMapTable(NSObjectMapKeyCallBacks,NSNonRetainedObjectMapValueCallBacks,0) autorelease];
-}
-
-+mapTableWithWeakToStrongObjects {
-    return [NSCreateMapTable(NSNonRetainedObjectMapKeyCallBacks,NSObjectMapValueCallBacks,0) autorelease];
-}
-
 +mapTableWithWeakToWeakObjects {
     return [NSCreateMapTable(NSNonRetainedObjectMapKeyCallBacks,NSNonRetainedObjectMapValueCallBacks,0) autorelease];
 }
 
-+strongToStrongObjectsMapTable {
-    return [self mapTableWithStrongToStrongObjects];
++mapTableWithWeakToStrongObjects {
+   return [NSCreateMapTable(NSNonRetainedObjectMapKeyCallBacks,NSObjectMapValueCallBacks,0) autorelease];
 }
 
-+strongToWeakObjectsMapTable {
-    return [self mapTableWithStrongToWeakObjects];
-}
-
-+weakToStrongObjectsMapTable {
-    return [self mapTableWithWeakToStrongObjects];
-}
-
-+weakToWeakObjectsMapTable {
-    return [self mapTableWithWeakToWeakObjects];
++mapTableWithStrongToStrongObjects {
+   return [NSCreateMapTable(NSObjectMapKeyCallBacks,NSObjectMapValueCallBacks,0) autorelease];
 }
 
 -(void)dealloc {

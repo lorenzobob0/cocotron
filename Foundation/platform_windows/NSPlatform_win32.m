@@ -5,7 +5,6 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
-#ifdef WINDOWS
 
 #import <Foundation/NSPlatform_win32.h>
 #import <Foundation/NSString_win32.h>
@@ -32,8 +31,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSRunLoop.h>
 #import <Foundation/NSFileManager.h>
 #import <Foundation/NSError.h>
-#import <stdlib.h>
-#import <winsock.h>
+#include <stdlib.h>
+#include <winsock.h>
 #import <Foundation/NSSocket_windows.h>
 #import <Foundation/NSParentDeathMonitor_win32.h>
 #import <Foundation/NSSelectInputSourceSet.h>
@@ -221,21 +220,13 @@ NSString * const NSPlatformLoadableObjectFileExtension=@"dll";
 NSString * const NSPlatformLoadableObjectFilePrefix=@"";
 
 -(NSArray *)arguments {
-    NSMutableArray *result=[NSMutableArray array];
-    int             i;
- 	
-    // Parse the program arguments as unicode
-    LPWSTR cmd = GetCommandLineW();
-    int argc = 0;
-    LPWSTR *argv = CommandLineToArgvW(cmd, &argc);
-    if (argv) {
-        for(i=0;i<argc;i++) {
-            [result addObject:[NSString stringWithCharacters:(unichar *)argv[i] length:wcslen(argv[i])]];
-        }
-        LocalFree(argv);
-    }
- 	
-    return result;
+   NSMutableArray *result=[NSMutableArray array];
+   int             i;
+
+   for(i=0;i<__argc;i++)
+    [result addObject:[NSString stringWithCString:__argv[i]]];
+
+   return result;
 }
 
 -(NSDictionary *)environment {
@@ -571,5 +562,4 @@ BOOL NSPlatformGreaterThanOrEqualToWindows2000(void) {
    return (osVersion.dwMajorVersion>=5)?YES:NO;
 }
 
-#endif
 

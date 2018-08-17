@@ -45,18 +45,14 @@ NSMutableArray_concrete *NSMutableArray_concreteInitWithCapacity(NSMutableArray_
 
 NSArray *NSMutableArray_concreteNew(NSZone *zone,id *objects,NSUInteger count) {
    NSMutableArray_concrete *self=NSAllocateObject([NSMutableArray_concrete class],0,zone);
-    if (self) {
-        self = NSMutableArray_concreteInit(self,objects,count,zone);
-    }
-   return self;
+
+   return NSMutableArray_concreteInit(self,objects,count,zone);
 }
 
 NSArray *NSMutableArray_concreteNewWithCapacity(NSZone *zone,NSUInteger capacity) {
    NSMutableArray_concrete *self=NSAllocateObject([NSMutableArray_concrete class],0,zone);
-    if (self) {
-        self = NSMutableArray_concreteInitWithCapacity(self,capacity,zone);
-    }
-    return self;
+
+   return NSMutableArray_concreteInitWithCapacity(self,capacity,zone);
 }
 
 -init {
@@ -293,52 +289,37 @@ static inline NSUInteger indexOfObject(NSMutableArray_concrete *self,id object){
 		[_objects[i] performSelector:selector];
 }
 
-// Bottom up merge
-
--(void)mergeUsingFunction:(NSInteger (*)(id, id, void *))compare context:(void *)context A: (id *)A left:(NSInteger)iLeft right:(NSInteger)iRight end:(NSInteger)iEnd B: (id *)B
-{
-    NSInteger i0 = iLeft;
-    NSInteger i1 = iRight;
-    NSInteger j;
-    
-    /* While there are elements in the left or right lists */
-    for (j = iLeft; j < iEnd; j++)
-    {
-        /* If left list head exists and is <= existing right list head */
-        if (i0 < iRight && (i1 >= iEnd || compare(A[i0], A[i1], context) != NSOrderedDescending))
-        {
-            B[j] = A[i0++];
-        }
-        else
-        {
-            B[j] = A[i1++];
-        }
-    }
-}
-
-// iterative bottom up mergesort based on http://en.wikipedia.org/wiki/Merge_sort
+// iterative mergesort based on http://www.inf.fh-flensburg.de/lang/algorithmen/sortieren/merge/mergiter.htm
 -(void)sortUsingFunction:(NSInteger (*)(id, id, void *))compare context:(void *)context {
-  NSInteger n = _count;
-    
-  /* array A[] has the items to sort; array B[] is a work array */
-  id *A = _objects;
-  id *B = NSZoneMalloc(NULL,(n+1)* sizeof(id));
+  NSInteger h, i, j, k, l, m, n = _count;
+  id  A, *B = NSZoneMalloc(NULL,(n/2 + 1) * sizeof(id));
 
-  /* Each 1-element run in A is already "sorted". */
-
-  /* Make successively longer sorted runs of length 2, 4, 8, 16... until whole array is sorted. */
-  for (int width = 1; width < n; width = 2 * width)
+  for (h = 1; h < n; h += h)
   {
-      /* Array A is full of runs of length width. */
-      for (int i = 0; i < n; i = i + 2 * width)
-      {
-          /* Merge two runs: A[i:i+width-1] and A[i+width:i+2*width-1] to B[] */
-          /* or copy A[i:n-1] to B[] ( if(i+width >= n) ) */
-          [self mergeUsingFunction: compare context: context A: A left: i right: MIN(i+width, n) end: MIN(i+2*width, n) B: B];
-      }
-      /* Now work array B is full of runs of length 2*width. */
-      /* Copy array B to array A for next iteration. */
-      memcpy(A, B, n * sizeof(id));
+     for (m = n - 1 - h; m >= 0; m -= h + h)
+     {
+        l = m - h + 1;
+        if (l < 0)
+           l = 0;
+
+        for (i = 0, j = l; j <= m; i++, j++)
+           B[i] = _objects[j];
+
+        for (i = 0, k = l; k < j && j <= m + h; k++)
+        {
+           A = _objects[j];
+           if (compare(A, B[i], context) == NSOrderedDescending)
+              _objects[k] = B[i++];
+           else
+           {
+              _objects[k] = A;
+              j++;
+           }
+        }
+
+        while (k < j)
+           _objects[k++] = B[i++];
+     }
   }
 
   free(B);

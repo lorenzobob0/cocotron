@@ -13,41 +13,29 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 typedef O2ImageSource *O2ImageSourceRef;
 
-@class NSData, NSDictionary, NSURL, O2Image, O2DataProvider;
+@class NSData,NSDictionary,NSURL,O2Image,O2DataProvider;
 
-// The O2 & CG constants must have the same values
 extern NSString *kO2ImagePropertyDPIWidth;
 extern NSString *kO2ImagePropertyDPIHeight;
-extern NSString *kO2ImagePropertyPixelHeight;
-extern NSString *kO2ImagePropertyPixelWidth;
-extern NSString *kO2ImagePropertyOrientation;
-
-extern NSString *kO2ImagePropertyTIFFDictionary;
-extern NSString *kO2ImagePropertyExifDictionary;
-
-extern NSString *kO2ImagePropertyTIFFXResolution;
-extern NSString *kO2ImagePropertyTIFFYResolution;
-extern NSString *kO2ImagePropertyTIFFOrientation;
 
 @interface O2ImageSource : NSObject {
-    O2DataProvider *_provider;
-    NSDictionary *_options;
+   O2DataProvider *_provider;
+   NSDictionary   *_options;
 }
 
-+ (O2ImageSourceRef)newImageSourceWithDataProvider:(O2DataProvider *)provider options:(CFDictionaryRef)options;
-+ (O2ImageSourceRef)newImageSourceWithData:(CFDataRef)data options:(CFDictionaryRef)options;
-+ (O2ImageSourceRef)newImageSourceWithURL:(NSURL *)url options:(CFDictionaryRef)options;
++(O2ImageSourceRef)newImageSourceWithDataProvider:(O2DataProvider *)provider options:(CFDictionaryRef)options;
++(O2ImageSourceRef)newImageSourceWithData:(CFDataRef)data options:(CFDictionaryRef)options;
++(O2ImageSourceRef)newImageSourceWithURL:(NSURL *)url options:(CFDictionaryRef)options;
 
-+ (BOOL)isPresentInDataProvider:(O2DataProvider *)provider;
++(BOOL)isPresentInDataProvider:(O2DataProvider *)provider;
 
-- initWithDataProvider:(O2DataProvider *)provider options:(NSDictionary *)options;
+-initWithDataProvider:(O2DataProvider *)provider options:(NSDictionary *)options;
 
-- (unsigned)count;
-- (CFStringRef)type;
+-(unsigned)count;
 
-- (CFDictionaryRef)copyPropertiesAtIndex:(unsigned)index options:(CFDictionaryRef)options;
-- (O2ImageRef)createImageAtIndex:(unsigned)index options:(CFDictionaryRef)options;
+-(CFDictionaryRef)copyPropertiesAtIndex:(unsigned)index options:(CFDictionaryRef)options;
+-(O2ImageRef)createImageAtIndex:(unsigned)index options:(CFDictionaryRef)options;
 
-O2ImageRef O2ImageSourceCreateImageAtIndex(O2ImageSourceRef self, size_t index, CFDictionaryRef options);
+O2ImageRef O2ImageSourceCreateImageAtIndex(O2ImageSourceRef self,size_t index,CFDictionaryRef options);
 
 @end

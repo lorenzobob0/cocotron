@@ -241,25 +241,18 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     return nil;
 }
 
--(NSSize)cellSize {
-   NSSize size=[_controlView frame].size;
-   size.width  -= 3.0;
-   size.height -= 2.0;
-   return size;
-}
-
 -(NSRect)buttonRectForBounds:(NSRect)rect {
    rect.origin.x=(rect.origin.x+rect.size.width)-rect.size.height;
    rect.size.width=rect.size.height;
-   return rect;
+   return NSInsetRect(rect,2,2);
 }
 
 -(BOOL)trackMouse:(NSEvent *)event inRect:(NSRect)cellFrame ofView:(NSView *)controlView untilMouseUp:(BOOL)flag {
+   BOOL              saveSendsActionOnEndEditing = _sendsActionOnEndEditing;
    NSComboBoxWindow *window;
    NSPoint           origin=[controlView bounds].origin;
-   NSSize            size=[self cellSize];
    NSPoint           check=[controlView convertPoint:[event locationInWindow] fromView:nil];
-   unsigned          selectedIndex = [_objectValues indexOfObject:[self objectValue]];
+   unsigned          selectedIndex;
 
    if([_objectValues count]==0)
     return NO;
@@ -267,82 +260,48 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    if(!NSMouseInRect(check,[self buttonRectForBounds:cellFrame],[controlView isFlipped]))
     return NO;
 
-   origin.y+=size.height;
+   origin.y+=[controlView bounds].size.height;
    origin=[controlView convertPoint:origin toView:nil];
    origin=[[controlView window] convertBaseToScreen:origin];
-   size.width+=1.0;
 
-   window=[[NSComboBoxWindow alloc] initWithFrame:(NSRect){origin,size}];
+   window=[[NSComboBoxWindow alloc] initWithFrame:NSMakeRect(origin.x,origin.y,
+     cellFrame.size.width,cellFrame.size.height)];
 
    [window setObjectArray:_objectValues];
-   [window setSelectedIndex:selectedIndex];
-   if([self font] != nil)
-      [window setFont:[self font]];
+   if([self font]!=nil)
+    [window setFont:[self font]];
 
    _buttonPressed=YES;
-   [window makeKeyAndOrderFront:self];
-   selectedIndex = [window runTrackingWithEvent:event];
+   [controlView setNeedsDisplay:YES];
+   selectedIndex=[window runTrackingWithEvent:event];
    [window close]; // release when closed=YES
    _buttonPressed=NO;
+   [controlView setNeedsDisplay:YES];
 
-   if (selectedIndex != NSNotFound)
-   {
-      NSTextView *editor = [controlView currentEditor];
-      NSObject   *object = [_objectValues objectAtIndex:selectedIndex];
-      if (editor && object)
-      {
-         NSString           *string = nil;
-         NSAttributedString *attstr = nil;
+   if(selectedIndex!=NSNotFound){
+    NSControl *control=(NSControl *)controlView;
 
-         if (_formatter)
-            string = [_formatter stringForObjectValue:object];
-
-         if (!string)
-            if ([object isKindOfClass:[NSString class]])
-               string = object;
-            else if ([object isKindOfClass:[NSAttributedString class]])
-               if ([editor isRichText])
-                  attstr = object;
-               else
-                  string = [object string];
-            else if ([object respondsToSelector:@selector(descriptionWithLocale:)])
-               string = [object descriptionWithLocale:[NSLocale currentLocale]];
-            else if ([object respondsToSelector:@selector(description)])
-               string = [object description];
-            else
-               string = @"";
-
-         if (attstr)
-            [[(NSTextView *)editor textStorage] setAttributedString:attstr];
-         else
-            [editor setString:string];
-
-         [editor setSelectedRange:NSMakeRange(0, [[editor string] length])];
-         [self endEditing:editor];
-         if (_sendsActionOnEndEditing)
-            [(NSControl *)controlView sendAction:[(NSControl *)controlView action] to:[(NSControl *)controlView target]];
-      }
+    // the superclass NSTextFieldCell would send the action on endEditing
+    // before our new value is set. Therefore _sendsActionOnEndEditing
+    // should be temporarily set to NO
+    _sendsActionOnEndEditing = NO;
+    [control setObjectValue:[_objectValues objectAtIndex:selectedIndex]];
+    _sendsActionOnEndEditing = saveSendsActionOnEndEditing; // restore _sendsActionOnEndEditing 
+    [control sendAction:[control action] to:[control target]];
    }
 
    return YES;
 }
 
 -(NSRect)titleRectForBounds:(NSRect)rect {
-   // Keep some room for the button
-   NSRect buttonFrame = [self buttonRectForBounds:rect];
-   rect.size.width   = NSMinX(buttonFrame) - rect.origin.x;
    rect=[super titleRectForBounds:rect];
+
+   rect.size.width-=rect.size.height;
 
    return rect;
 }
 
--(void)drawInteriorWithFrame:(NSRect)frame inView:(NSView *)controlView {
-   frame.size = [self cellSize];
-   [super drawInteriorWithFrame:frame inView:controlView];
-}
-
 -(void)drawWithFrame:(NSRect)frame inView:(NSView *)controlView {
-   frame.size = [self cellSize];
    [super drawWithFrame:frame inView:controlView];
 
    [[controlView graphicsStyle] drawComboBoxButtonInRect:[self buttonRectForBounds:frame] enabled:_buttonEnabled bordered:_isButtonBordered pressed:_buttonPressed];

@@ -36,10 +36,8 @@ NSNumber *NSNumber_doubleNew(NSZone *zone,double value) {
    if (result==nil)
    {
       NSNumber_double *self=NSAllocateObject([NSNumber_double class],0,zone);
-       if (self) {
-          self->_type=kCFNumberDoubleType;
-          self->_value=value;
-       }
+      self->_type=kCFNumberDoubleType;
+      self->_value=value;
       result=self;
    }
    return result;

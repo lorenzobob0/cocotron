@@ -11,8 +11,10 @@
 
 #import <Foundation/NSUndoManager.h>
 
-@interface NSCellUndoManager : NSUndoManager {
-    NSUndoManager *_nextUndoManager;
+
+@interface NSCellUndoManager : NSUndoManager 
+{
+  NSUndoManager * _nextUndoManager;
 }
 
 - (BOOL)canUndo;

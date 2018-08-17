@@ -1,4 +1,3 @@
-#ifdef WINDOWS
 /* Copyright (c) 2009-2010 Glenn Ganz
  
  Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
@@ -24,21 +23,16 @@
 #define MAX_KEY_LENGTH 255
 #define MAX_VALUE_NAME 16383
 
-#pragma pack(1)
-
-typedef struct _REG_TZI_FORMAT
+typedef struct _TZI
 {
-    LONG Bias;
-    LONG StandardBias;
-    LONG DaylightBias;
-    SYSTEMTIME StandardDate;
-    SYSTEMTIME DaylightDate;
-} REG_TZI_FORMAT;
+    int bias;
+    int standardBias;
+    int daylightBias;
+    SYSTEMTIME standardDate;
+    SYSTEMTIME daylightDate;
+} TZI;
 
-#pragma pack()
-
-
-//   TODO:
+//   TODO: 
 //   Dynamic DST (see SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Time Zones\\*\\Dynamic DST in registry)
 
 
@@ -206,13 +200,12 @@ WINBASEAPI BOOL WINAPI TzSpecificLocalTimeToSystemTime_priv(LPTIME_ZONE_INFORMAT
 
 -(TIME_ZONE_INFORMATION)_timeZoneInformation {
     TIME_ZONE_INFORMATION timezoneInformation;
-    REG_TZI_FORMAT  *tzi = (REG_TZI_FORMAT *)[self->_data bytes];
     
-    timezoneInformation.Bias          = tzi->Bias;
-    timezoneInformation.StandardDate  = tzi->StandardDate;
-    timezoneInformation.StandardBias  = tzi->StandardBias;
-    timezoneInformation.DaylightDate  = tzi->DaylightDate;
-    timezoneInformation.DaylightBias  = tzi->DaylightBias;
+    timezoneInformation.Bias          = ((struct _TZI *)[self->_data bytes])->bias;
+    timezoneInformation.StandardDate  = ((struct _TZI *)[self->_data bytes])->standardDate;
+    timezoneInformation.StandardBias  = ((struct _TZI *)[self->_data bytes])->standardBias;
+    timezoneInformation.DaylightDate  = ((struct _TZI *)[self->_data bytes])->daylightDate;
+    timezoneInformation.DaylightBias  = ((struct _TZI *)[self->_data bytes])->daylightBias;
     
     return timezoneInformation;
 }
@@ -282,10 +275,8 @@ WINBASEAPI BOOL WINAPI TzSpecificLocalTimeToSystemTime_priv(LPTIME_ZONE_INFORMAT
                             daylightnameset = YES;
                         }
                         else if (strcmp(valueName,"TZI") == 0) {
-                            if (dataSize == 44) {
-                                memcpy(tzdata, lpData, dataSize);
-                                dataset = YES;
-                            }
+                            memcpy(tzdata, lpData, dataSize);
+                            dataset = YES;
                         }
                         
                         if (dataset  == YES && nameset == YES && daylightnameset == YES) {
@@ -298,7 +289,7 @@ WINBASEAPI BOOL WINAPI TzSpecificLocalTimeToSystemTime_priv(LPTIME_ZONE_INFORMAT
                             }
                             RegCloseKey(hTimeZoneKey);
                             
-                            return [NSData dataWithBytes:tzdata length:44];
+                            return [NSData dataWithBytes:tzdata length:dataSize];
                         }
                     }
                 }
@@ -451,4 +442,3 @@ WINBASEAPI BOOL WINAPI TzSpecificLocalTimeToSystemTime_priv(LPTIME_ZONE_INFORMAT
 }
 
 @end
-#endif

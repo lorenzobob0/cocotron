@@ -65,13 +65,7 @@ FOUNDATION_EXPORT char *NSUnicodeToSymbol(const unichar *characters,unsigned len
 		return [O2Font postscriptNameForDisplayName:@"Arial"];
 	if([name isEqual:@"LucidaGrande-Bold"])
 		return [O2Font postscriptNameForDisplayName:@"Arial Bold"];
-    
-    // Special fonts used by Xcode 5 when compiling some xibs
-	if([name isEqual:@".LucidaGrandeUI"])
-		return [O2Font postscriptNameForDisplayName:@"Arial"];
-	if([name isEqual:@".LucidaGrandeUI-Bold"])
-		return [O2Font postscriptNameForDisplayName:@"Arial Bold"];
-    
+
 	if([name isEqual:@"HelveticaNeue-CondensedBold"])
 		return [O2Font postscriptNameForDisplayName:@"Arial"];    
 	if([name isEqual:@"HelveticaNeue-Bold"])
@@ -92,15 +86,12 @@ static unsigned _fontCacheCapacity=0;
 static unsigned _fontCacheSize=0;
 static NSFont **_fontCache=NULL;
 
-static NSLock *_cacheLock=nil;
-
 +(void)initialize {
    if(self==[NSFont class]){
     _fontCacheCapacity=4;
     _fontCacheSize=0;
     _fontCache=NSZoneMalloc([self zone],sizeof(NSFont *)*_fontCacheCapacity);
 	   _nibFontTranslator = [[NSNibFontNameTranslator alloc] init];
-       _cacheLock = [[NSLock alloc] init];
    }
 }
 
@@ -113,33 +104,25 @@ static NSLock *_cacheLock=nil;
     if(check!=nil && [[check fontName] isEqualToString:name] && [check pointSize]==size)
      return i;
    }
-    
+
    return NSNotFound;
 }
 
 +(NSFont *)cachedFontWithName:(NSString *)name size:(float)size {
-    
-    NSFont *font = nil;
-    [_cacheLock lock];
-    unsigned i=[self _cacheIndexOfFontWithName:name size:size];
-        
-    font = (i==NSNotFound)?(NSFont *)nil:_fontCache[i];
-    [_cacheLock unlock];
-    return font;
+   unsigned i=[self _cacheIndexOfFontWithName:name size:size];
+
+   return (i==NSNotFound)?(NSFont *)nil:_fontCache[i];
 }
 
 +(void)addFontToCache:(NSFont *)font {
-    
 	if (font == nil) {
 		return;
 	}
    unsigned i;
 
-    [_cacheLock lock];
    for(i=0;i<_fontCacheSize;i++){
     if(_fontCache[i]==nil){
      _fontCache[i]=font;
-        [_cacheLock unlock];
      return;
     }
    }
@@ -149,16 +132,13 @@ static NSLock *_cacheLock=nil;
     _fontCache=NSZoneRealloc([self zone],_fontCache,sizeof(NSFont *)*_fontCacheCapacity);
    }
    _fontCache[_fontCacheSize++]=font;
-    [_cacheLock unlock];
 }
 
 +(void)removeFontFromCache:(NSFont *)font {
-    [_cacheLock lock];
    unsigned i=[self _cacheIndexOfFontWithName:[font fontName] size:[font pointSize]];
 
    if(i!=NSNotFound)
     _fontCache[i]=nil;
-    [_cacheLock unlock];
 }
 
 +(float)systemFontSize {
@@ -187,53 +167,52 @@ static NSLock *_cacheLock=nil;
    }
 }
 
-+(NSFont *)_uiFontOfType:(CTFontUIFontType)type size:(float)size fallbackName:(NSString *)fallbackName
-{
-    NSFont *result = nil;
-    CTFontRef ctFont=CTFontCreateUIFontForLanguage(type,size,nil);
-    if (ctFont) {
-        NSString *name=(NSString *)CTFontCopyFullName(ctFont);
-        
-        size=CTFontGetSize(ctFont);
-        
-        result=[NSFont fontWithName:name size:size];
-        
-        [ctFont release];
-        [name release];
-    } else {
-        result = [NSFont fontWithName:[O2Font postscriptNameForDisplayName:fallbackName] size:size];
-    }
-    O2FontLog(@"asked for type: %d got font: %@", type, result);
-    return result;
-}
-
 +(NSFont *)boldSystemFontOfSize:(float)size {
-    NSFont *font = [self systemFontOfSize:size];
-    return [[NSFontManager sharedFontManager] convertFont:font toHaveTrait:NSBoldFontMask];
+   return [NSFont fontWithName:[O2Font postscriptNameForDisplayName:@"Arial Bold"] size:(size==0)?[self systemFontSize]:size];
 }
 
 +(NSFont *)controlContentFontOfSize:(float)size {
-    return [self _uiFontOfType:kCTFontControlContentFontType size:(size==0)?12.0:size fallbackName:@"Arial"];
+   return [NSFont fontWithName:[O2Font postscriptNameForDisplayName:@"Arial"] size:(size==0)?12.0:size];
 }
 
 +(NSFont *)labelFontOfSize:(float)size {
-    return [self _uiFontOfType:kCTFontLabelFontType size:(size==0)?12.0:size fallbackName:@"Arial"];
+   return [NSFont fontWithName:[O2Font postscriptNameForDisplayName:@"Arial"] size:(size==0)?[self labelFontSize]:size];
 }
 
 +(NSFont *)menuFontOfSize:(float)size {
-    return [self _uiFontOfType:kCTFontMenuItemFontType size:size fallbackName:@"Arial"];
+   CTFontRef ctFont=CTFontCreateUIFontForLanguage(kCTFontMenuItemFontType,size,nil);
+   NSString *name=(NSString *)CTFontCopyFullName(ctFont);
+   
+   size=CTFontGetSize(ctFont);
+   
+   NSFont *result=[NSFont fontWithName:name size:size];
+   
+   [ctFont release];
+   [name release];
+   
+   return result;
 }
 
 +(NSFont *)menuBarFontOfSize:(float)size {
-    return [self _uiFontOfType:kCTFontMenuTitleFontType size:size fallbackName:@"Arial"];
+   CTFontRef ctFont=CTFontCreateUIFontForLanguage(kCTFontMenuTitleFontType,size,nil);
+   NSString *name=(NSString *)CTFontCopyFullName(ctFont);
+   
+   size=CTFontGetSize(ctFont);
+   
+   NSFont *result=[NSFont fontWithName:name size:size];
+   
+   [ctFont release];
+   [name release];
+   
+   return result;
 }
 
 +(NSFont *)messageFontOfSize:(float)size {
-    return [self _uiFontOfType:kCTFontSystemFontType size:(size==0)?12.0:size fallbackName:@"Arial"];
+   return [NSFont fontWithName:[O2Font postscriptNameForDisplayName:@"Arial"] size:(size==0)?12.0:size];
 }
 
 +(NSFont *)paletteFontOfSize:(float)size {
-    return [self _uiFontOfType:kCTFontPaletteFontType size:(size==0)?12.0:size fallbackName:@"Arial"];
+   return [NSFont fontWithName:[O2Font postscriptNameForDisplayName:@"Arial"] size:(size==0)?12.0:size];
 }
 
 +(NSFont *)systemFontOfSize:(float)size {
@@ -241,11 +220,11 @@ static NSLock *_cacheLock=nil;
 }
 
 +(NSFont *)titleBarFontOfSize:(float)size {
-    return [self boldSystemFontOfSize:size];
+   return [NSFont fontWithName:[O2Font postscriptNameForDisplayName:@"Arial"] size:(size==0)?12.0:size];
 }
 
 +(NSFont *)toolTipsFontOfSize:(float)size {
-    return [self _uiFontOfType:kCTFontToolTipFontType size:(size==0)?10.:size fallbackName:@"Arial"];
+   return [NSFont fontWithName:@"Tahoma" size:(size==0)?10.0:size];
 }
 
 +(NSFont *)userFontOfSize:(float)size {
@@ -288,16 +267,13 @@ static NSLock *_cacheLock=nil;
 -initWithCoder:(NSCoder *)coder {
    if([coder allowsKeyedCoding]){
     NSKeyedUnarchiver *keyed=(NSKeyedUnarchiver *)coder;
-       NSString *fontName = [keyed decodeObjectForKey:@"NSName"];
-    NSString          *name=[[NSFont nibFontTranslator] translateFromNibFontName: fontName];
+    NSString          *name=[[NSFont nibFontTranslator] translateFromNibFontName:[keyed decodeObjectForKey:@"NSName"]];
     float              size=[keyed decodeFloatForKey:@"NSSize"];
     // int                flags=[keyed decodeIntForKey:@"NSfFlags"]; // ?
     
     [self dealloc];
     
-    NSFont *realFont = [[NSFont fontWithName:name size:size] retain];
-       O2FontLog(@"coded font name: %@ translated font name: %@ rendered font: %@", fontName, name, realFont);
-       return realFont;
+    return [[NSFont fontWithName:name size:size] retain];
    }
    else {
     [NSException raise:NSInvalidArgumentException format:@"%@ can not initWithCoder:%@",isa,[coder class]];
@@ -325,7 +301,6 @@ static NSLock *_cacheLock=nil;
 	if (_cgFont) {
 		_ctFont=CTFontCreateWithGraphicsFont(_cgFont,_pointSize,NULL,NULL);
 		[isa addFontToCache:self];
-        O2FontLog(@"name: %@ _cgFont: %@ _ctFont: %@", name, _cgFont, _ctFont);
 	} else {
 		[self release];
 		self = nil;
@@ -353,9 +328,8 @@ static NSLock *_cacheLock=nil;
 
    result=[self cachedFontWithName:name size:size];
 
-    if(result==nil) {
-        result=[[[NSFont alloc] initWithName:name size:size] autorelease];
-    }
+   if(result==nil)
+    result=[[[NSFont alloc] initWithName:name size:size] autorelease];
 
    return result;
 }
@@ -597,9 +571,8 @@ arrayWithArray:[_name componentsSeparatedByString:blank]];
    return CTFontGetAscent(_ctFont);
 }
 
-// CT & NS descender value have opposite value on Cocoa
 -(float)descender {
-   return -CTFontGetDescent(_ctFont);
+   return CTFontGetDescent(_ctFont);
 }
 
 -(float)leading {
@@ -607,7 +580,7 @@ arrayWithArray:[_name componentsSeparatedByString:blank]];
 }
 
 -(float)defaultLineHeightForFont {
-   return roundf(CTFontGetAscent(_ctFont) + CTFontGetDescent(_ctFont) + CTFontGetLeading(_ctFont));
+   return CTFontGetAscent(_ctFont)-CTFontGetDescent(_ctFont)+CTFontGetLeading(_ctFont);;
 }
 
 -(BOOL)isFixedPitch {
@@ -694,7 +667,7 @@ arrayWithArray:[_name componentsSeparatedByString:blank]];
    for(i=0;i<length;i++){
     unichar check=characters[i];
 
-    if(check<' ' || (check>=0x7F && check<=0x9F) || check==0x200B || check==0x2028 || check==0x2029)
+    if(check<' ' || (check>=0x7F && check<=0x9F) || check==0x200B)
      glyphs[i]=NSControlGlyph;
     else
      glyphs[i]=cgGlyphs[i];

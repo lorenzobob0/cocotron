@@ -9,7 +9,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <AppKit/Win32Window.h>
 #import <AppKit/Win32Event.h>
 #import <AppKit/Win32Display.h>
-#import <AppKit/NSStatusBar_(Private).h>
 #import <Foundation/NSString_win32.h>
 #import <Onyx2D/O2Context.h>
 #import <Onyx2D/O2Surface.h>
@@ -17,7 +16,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSPlatform_win32.h>
 
 #import <AppKit/NSWindow.h>
-#import <AppKit/NSWindow-Private.h>
 #import <AppKit/NSPanel.h>
 #import <AppKit/NSDrawerWindow.h>
 #import <QuartzCore/CAWindowOpenGLContext.h>
@@ -26,6 +24,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import "Win32EventInputSource.h"
 
 #import "opengl_dll.h"
+#define WM_MSG_DEBUGGING 0
 
 @interface Win32Window(ForwardRefs)
 -(void)setupPixelFormat;
@@ -248,7 +247,7 @@ static const unichar *Win32ClassNameForStyleMask(unsigned styleMask,bool hasShad
    NSString *check=[[NSUserDefaults standardUserDefaults] stringForKey:@"CGBackingRasterizer"];
    if([check isEqual:@"Onyx"] || [check isEqual:@"GDI"])
     [_deviceDictionary setObject:check forKey:@"CGContext"];
-
+    
    return self;
 }
 
@@ -371,11 +370,6 @@ static const unichar *Win32ClassNameForStyleMask(unsigned styleMask,bool hasShad
 }
 
 -(void)setFrame:(CGRect)frame {
-
-#if WM_MSG_DEBUGGING
-    NSLog(@"Win32Window setFrame: %@", NSStringFromRect(frame));
-#endif
-    
    [self invalidateContextsWithNewSize:frame.size];
 
     // _frame must be set before the MoveWindow as MoveWindow generates WM_SIZE and WM_MOVE messages
@@ -507,9 +501,6 @@ static const unichar *Win32ClassNameForStyleMask(unsigned styleMask,bool hasShad
 	// first and then the secondary window in order to reset the focus. This makes it all
 	// happen as expected.
 	SetForegroundWindow(_handle);
-    // That's also needed to be sure we get scrollevents - else they are lost after the current
-    // focused window is closed
-    SetFocus(_handle);
 }
 
 -(void)makeMain {
@@ -1095,26 +1086,6 @@ static int reportGLErrorIfNeeded(const char *function,int line){
     UpdateLayeredWindow(_handle, NULL, NULL, &sizeWnd, [deviceContext dc], &ptSrc, 0, &blend, flags);
 }
 
-
-#define DIRTY_RECT_BLOCK_COUNT 128
-
--(void)dirtyRect:(CGRect)rect
-{
-   if (_dirtyRectCap == _dirtyRectCnt)
-   {
-      void *tmp = (_dirtyRectCnt == 0)
-                ? malloc((_dirtyRectCap = DIRTY_RECT_BLOCK_COUNT)*sizeof(CGRect))
-                : realloc(_dirtyRectSet, (_dirtyRectCap += DIRTY_RECT_BLOCK_COUNT)*sizeof(CGRect));
-
-      if (tmp)
-         _dirtyRectSet = tmp;
-      else          // out of memory -- don't increase the rect set, perhaps we will see display glitches, but nothing serious would happen.
-         return;    // this rect cannot be considered
-   }
-
-   _dirtyRectSet[_dirtyRectCnt++] = rect;
-}
-
 -(void)bitBltWindow {
     switch(_backingType){
 
@@ -1136,46 +1107,7 @@ static int reportGLErrorIfNeeded(const char *function,int line){
     
             if(deviceContext!=nil){
                 O2SurfaceLock(surface);
-
-//#define BENCHBLIT 1 // Uncommnent this line for refresh rate debug info
-#if BENCHBLIT
-                static NSTimeInterval lastTime = 0.;
-                static int cptr = 0;
-                cptr++;
-#endif
-                if (_dirtyRectCnt)
-                {
-                   int i;
-                   NSRect r;
-                   for (i = 0; i < _dirtyRectCnt; i++)
-                   {
-                      r = CGRectIntegral(_dirtyRectSet[i]);
-                      if (CGRectIsEmpty(r) == NO)
-                      {  // Blit the dirty area
-                         int x = r.origin.x;
-                         int y = height - (r.origin.y + r.size.height);
-                         int w = r.size.width;
-                         int h = r.size.height;
-                         BitBlt([_cgContext dc],x-left,y-top,w,h,[deviceContext dc],x,y,SRCCOPY);
-                      }
-                   }
-
-                   // We're clean now
-                   free(_dirtyRectSet);
-                   _dirtyRectSet = NULL;
-                   _dirtyRectCnt = _dirtyRectCap = 0;
-                }
-                else  // Blit the whole content
-                   BitBlt([_cgContext dc],0,0,width,height,[deviceContext dc],left,top,SRCCOPY);
-
-#if BENCHBLIT
-                NSTimeInterval currentTime = [NSDate timeIntervalSinceReferenceDate];
-                if (currentTime - lastTime > 2.) {
-                    NSLog(@"%f fps", (double)cptr/(currentTime - lastTime));
-                    cptr = 0;
-                    lastTime = currentTime;
-                }
-#endif
+                BitBlt([_cgContext dc],0,0,width,height,[deviceContext dc],left,top,SRCCOPY);
                 O2SurfaceUnlock(surface);
             }
             break;
@@ -1258,70 +1190,6 @@ static int reportGLErrorIfNeeded(const char *function,int line){
    FlashWindow(_handle,TRUE);
 }
 
--(CGRect)queryFrame {
-   RECT rect;
-   
-   if(GetWindowRect(_handle,&rect)==0){
-    NSLog(@"GetWindowRect failed, handle=%p, %s %d",_handle,__FILE__,__LINE__);
-    
-    return CGRectMake(0,0,0,0);
-   }
-   
-   return convertFrameFromWin32ScreenCoordinates(CGRectFromRECT(rect));
-}
-
--(void)_GetWindowRectDidSize:(BOOL)didSize {
-    CGRect frame=[self queryFrame];
-    
-    if(frame.size.width>0 && frame.size.height>0){
-        if(![self isMiniaturized])
-            _frame=frame;
-        
-        [_delegate platformWindow:self frameChanged:frame didSize:didSize];
-    }
-}
-
--(int)WM_SIZE_wParam:(WPARAM)wParam lParam:(LPARAM)lParam {
-   CGSize contentSize={LOWORD(lParam),HIWORD(lParam)};
-
-   if(!_isClosing && contentSize.width>0 && contentSize.height>0){
-       NSSize checkSize=[self queryFrame].size;
-       
-       if(NSEqualSizes(checkSize,_frame.size))
-           return 0;
-       
-    [self invalidateContextsWithNewSize:checkSize];
-
-    [self _GetWindowRectDidSize:YES];
-
-    switch(_backingType){
-
-     case CGSBackingStoreRetained:
-     case CGSBackingStoreNonretained:
-      break;
-
-     case CGSBackingStoreBuffered:
-      [_delegate platformWindow:self needsDisplayInRect:NSZeroRect];
-      break;
-    }
-   }
-
-   return 0;
-}
-
--(int)WM_MOVE_wParam:(WPARAM)wParam lParam:(LPARAM)lParam {
-   NSPoint checkOrigin=[self queryFrame].origin;
-    
-   if(NSEqualPoints(checkOrigin,_frame.origin))
-    return 0;
-
-    [_delegate platformWindowWillMove:self];
-   [self _GetWindowRectDidSize:NO];
-   [_delegate platformWindowDidMove:self];
-
-   return 0;
-}
-
 // According the Microsoft Docs and general web opinion handling window size and move operations
 // via WM_WINDOWPOSCHANGED is much more efficient than WM_SIZE and WM_MOVE. Implementing a WM_WINDOWPOSCHANGED
 // handler means that WM_SIZE and WM_MOVE are no longer delivered.
@@ -1329,7 +1197,6 @@ static int reportGLErrorIfNeeded(const char *function,int line){
     
 #if WM_MSG_DEBUGGING
 	NSLog(@"WM_WINDOWPOSCHANGED_wParam: %d, lParam: %ld", wParam, lParam);
-#define WM_WINDOWPOSCHANGED_DEBUGGING 0
 #endif
 	
 	WINDOWPOS* pWP = (WINDOWPOS*)lParam;
@@ -1339,9 +1206,6 @@ static int reportGLErrorIfNeeded(const char *function,int line){
 		CGRect frame=_frame;
 		frame.origin = CGPointMake(pWP->x, pWP->y);
 		frame = convertFrameFromWin32ScreenCoordinates(frame);
-#if WM_WINDOWPOSCHANGED_DEBUGGING
-        NSLog(@"    Moving frame changed from: %@ to: %@", NSStringFromRect(_frame), NSStringFromRect(frame));
-#endif
 		[_delegate platformWindow:self frameChanged:frame didSize:NO];
 		[_delegate platformWindowDidMove:self];
     }
@@ -1351,9 +1215,6 @@ static int reportGLErrorIfNeeded(const char *function,int line){
 		frame.origin = CGPointMake(pWP->x, pWP->y);
 		frame.size = CGSizeMake(pWP->cx, pWP->cy);
 		frame = convertFrameFromWin32ScreenCoordinates(frame);
-#if WM_WINDOWPOSCHANGED_DEBUGGING
-        NSLog(@"    Resizing frame changed from: %@ to: %@", NSStringFromRect(_frame), NSStringFromRect(frame));
-#endif
 		[self invalidateContextsWithNewSize: frame.size];
 		[_delegate platformWindow:self frameChanged:frame didSize:YES];
         
@@ -1413,16 +1274,13 @@ static int reportGLErrorIfNeeded(const char *function,int line){
 }
 
 -(int)WM_CLOSE_wParam:(WPARAM)wParam lParam:(LPARAM)lParam {
+
 #if WM_MSG_DEBUGGING
 	NSLog(@"WM_CLOSE_wParam: %d, lParam: %ld", wParam, lParam);
 #endif
 	
-    if(_styleMask&NSClosableWindowMask) {
-      _isClosing = YES;
-      [_delegate platformWindowWillClose:self];
-      _isClosing = NO;
-    }
-
+    if(_styleMask&NSClosableWindowMask)
+        [_delegate platformWindowWillClose:self];
    return 0;
 }
 
@@ -1447,7 +1305,7 @@ static int reportGLErrorIfNeeded(const char *function,int line){
 	BOOL activated = LOWORD(wParam) != 0;
 	
 #if WM_ACTIVATE_DEBUGGING
-	NSLog(@"    isMinimized: %@, activated: %@", isMinimized ? @"YES" : @"NO", activated ? @"YES" : @"NO");
+	NSLog(@"isMinimized: %@, activated: %@", isMinimized ? @"YES" : @"NO", activated ? @"YES" : @"NO");
 #endif
 	
 	if (isMinimized) {
@@ -1714,34 +1572,22 @@ const int kWindowMaxDim = 10000;
 
    switch(message){
 
-       case WM_SETFOCUS:			return [self WM_SETFOCUS_wParam:wParam lParam:lParam];
-       case WM_ACTIVATE:			return [self WM_ACTIVATE_wParam:wParam lParam:lParam];
-       case WM_MOUSEACTIVATE: return [self WM_MOUSEACTIVATE_wParam:wParam lParam:lParam];
-#define NEW_SIZING_BEHAVIOR 1
-#ifdef NEW_SIZING_BEHAVIOR
+	case WM_SETFOCUS:			return [self WM_SETFOCUS_wParam:wParam lParam:lParam];
+    case WM_ACTIVATE:			return [self WM_ACTIVATE_wParam:wParam lParam:lParam];
+    case WM_MOUSEACTIVATE:		return [self WM_MOUSEACTIVATE_wParam:wParam lParam:lParam];
     case WM_WINDOWPOSCHANGED:	return [self WM_WINDOWPOSCHANGED_wParam: wParam lParam: lParam];
    // case WM_SIZE: // these are now covered by WM_WINDOWPOSCHANGED
    // case WM_MOVE:
-#else
-//    case WM_WINDOWPOSCHANGED:	return [self WM_WINDOWPOSCHANGED_wParam: wParam lParam: lParam];
-    case WM_SIZE:          return [self WM_SIZE_wParam:wParam lParam:lParam];
-    case WM_MOVE:          return [self WM_MOVE_wParam:wParam lParam:lParam];
-#endif
-       case WM_PAINT:         return [self WM_PAINT_wParam:wParam lParam:lParam];
-       case WM_CLOSE:         return [self WM_CLOSE_wParam:wParam lParam:lParam];
-       case WM_SETCURSOR:     return [self WM_SETCURSOR_wParam:wParam lParam:lParam];
-       case WM_SIZING:        return [self WM_SIZING_wParam:wParam lParam:lParam];
-       case WM_GETMINMAXINFO: return [self WM_GETMINMAXINFO_wParam:wParam lParam:lParam];
-       case WM_ENTERSIZEMOVE: return [self WM_ENTERSIZEMOVE_wParam:wParam lParam:lParam];
-       case WM_EXITSIZEMOVE:  return [self WM_EXITSIZEMOVE_wParam:wParam lParam:lParam];
+    case WM_PAINT:				return [self WM_PAINT_wParam:wParam lParam:lParam];
+    case WM_CLOSE:				return [self WM_CLOSE_wParam:wParam lParam:lParam];
+    case WM_SETCURSOR:			return [self WM_SETCURSOR_wParam:wParam lParam:lParam];
+    case WM_SIZING:				return [self WM_SIZING_wParam:wParam lParam:lParam];
+    case WM_GETMINMAXINFO:		return [self WM_GETMINMAXINFO_wParam:wParam lParam:lParam];
+    case WM_ENTERSIZEMOVE:		return [self WM_ENTERSIZEMOVE_wParam:wParam lParam:lParam];
+    case WM_EXITSIZEMOVE:		return [self WM_EXITSIZEMOVE_wParam:wParam lParam:lParam];
     case WM_SYSCOMMAND:    return [self WM_SYSCOMMAND_wParam:wParam lParam:lParam];
 	case WM_SYSCOLORCHANGE:		return [self WM_SYSCOLORCHANGE_wParam: wParam lParam: lParam];
 	case WM_ERASEBKGND:			return [self WM_ERASEBKGND_wParam: wParam lParam: lParam];
-           
-   case WM_COMMAND:
-           [[NSNotificationCenter defaultCenter] postNotificationName:@"WIN32_WM_COMMAND" object:[NSValue valueWithPoint:CGPointMake(lParam, wParam)]];
-           return 1;
-       break;
 
 #if 0
 // doesn't seem to work
@@ -1750,9 +1596,6 @@ const int kWindowMaxDim = 10000;
      [_delegate platformWindow:self needsDisplayInRect:NSZeroRect];
      break;
 #endif
-   case WM_NSTRAYACTIVATE:
-     [[NSStatusBar systemStatusBar] _trayNotificationForID:wParam event:lParam];
-     return 1;
 
     default:
      break;
@@ -1765,8 +1608,7 @@ const int kWindowMaxDim = 10000;
    return DefWindowProcW(_handle,message,wParam,lParam);
 }
 
-// Be sure the stack is aligned in case someone wants to do exotic things like SSE2
-static LRESULT __attribute__((force_align_arg_pointer))  CALLBACK windowProcedure(HWND handle,UINT message,WPARAM wParam,LPARAM lParam){
+static LRESULT CALLBACK windowProcedure(HWND handle,UINT message,WPARAM wParam,LPARAM lParam){
    NSAutoreleasePool *pool=[NSAutoreleasePool new];
    Win32Window       *self=GetProp(handle,"Win32Window");
    LRESULT            result;

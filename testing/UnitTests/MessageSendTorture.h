@@ -8,9 +8,10 @@
 
 #import <SenTestingKit/SenTestingKit.h>
 
+
 @interface MessageSendTorture : SenTestCase {
-    int _numFailures;
-    int _numSuccesses;
+   int _numFailures;
+   int _numSuccesses;
 }
-- (void)callSelectors:(BOOL)msgSend;
+-(void)callSelectors:(BOOL)msgSend;
 @end

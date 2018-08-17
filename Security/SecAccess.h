@@ -8,11 +8,12 @@
 
 #import <Foundation/Foundation.h>
 
+
 @interface SecAccess : NSObject {
-    CFStringRef _descriptor;
-    CFArrayRef _trustedList;
+   CFStringRef _descriptor;
+   CFArrayRef  _trustedList;
 }
 
-- initWithDescriptor:(CFStringRef)descriptor trustedList:(CFArrayRef)trustedList;
+-initWithDescriptor:(CFStringRef)descriptor trustedList:(CFArrayRef)trustedList;
 
 @end

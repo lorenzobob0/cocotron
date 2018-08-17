@@ -2,4 +2,5 @@
 
 @interface NSPredicateEditorRowTemplate : NSObject
 
+
 @end

@@ -73,7 +73,7 @@ NSString * const NSUserDefaultsDidChangeNotification=@"NSUserDefaultsDidChangeNo
    NSDictionary *plist=[NSDictionary dictionaryWithContentsOfFile:path];
 
    if(plist==nil)
-    NSCLog("internal error, unable to locate NSUserDefaults.plist, path=%s, bundle at %s",path == nil ? "" : [path UTF8String],[[[NSBundle bundleForClass:[self class]]  resourcePath] UTF8String]);
+    NSCLog("internal error, unable to locate NSUserDefaults.plist, path=%s, bundle at %s",path == nil ? "" : [path cString],[[[NSBundle bundleForClass:[self class]]  resourcePath] cString]);
    else
     [_domains setObject:plist forKey:@"Foundation"];
 }
@@ -130,9 +130,9 @@ NSString * const NSUserDefaultsDidChangeNotification=@"NSUserDefaultsDidChangeNo
    return nil;
 }
 
-static NSUserDefaults* stdUserDefaults = nil;
 
 +(NSUserDefaults *)standardUserDefaults {
+	static NSUserDefaults* stdUserDefaults = nil;
 	@synchronized(self) {
 		if (nil == stdUserDefaults) {
 			stdUserDefaults = [[NSUserDefaults alloc] init];
@@ -143,11 +143,6 @@ static NSUserDefaults* stdUserDefaults = nil;
 
 +(void)resetStandardUserDefaults {
    NSUnimplementedMethod();
-}
-
-+ (BOOL)standardUserDefaultsAvailable
-{
-    return stdUserDefaults != nil;
 }
 
 -(void)addSuiteNamed:(NSString *)name {
@@ -216,7 +211,8 @@ static NSUserDefaults* stdUserDefaults = nil;
 }
 
 -(NSArray *)persistentDomainNames {
-    return [NSArray arrayWithObject:[[NSProcessInfo processInfo] processName]];
+   NSUnimplementedMethod();
+   return nil;
 }
 
 -(NSDictionary *)volatileDomainForName:(NSString *)name {
@@ -232,10 +228,8 @@ static NSUserDefaults* stdUserDefaults = nil;
 
    for(i=0;i<count;i++){
     NSString *key=[allKeys objectAtIndex:i];
-       id value = [domain objectForKey: key];
-       if (value) {
-           [result setObject:value forKey:key];
-       }
+
+    [result setObject:[domain objectForKey: key] forKey:key];
    }
 
    return result;
@@ -364,16 +358,7 @@ static NSUserDefaults* stdUserDefaults = nil;
 
 -(void)setObject:value forKey:(NSString *)key {
 	@synchronized(self) {
-        // We'll remove from the persistant domain the values that are equal to the registered one
-        // Cocoa does that - even if the method documentation says nothing about it
-        if ([value isEqual:[[_domains objectForKey:NSRegistrationDomain] objectForKey:key]]) {
-            value = nil;
-        }
-        if (value) {
-            [[self persistantDomain] setObject:value forKey:key];
-        } else {
-            [[self persistantDomain] removeObjectForKey:key];
-        }
+	   [[self persistantDomain] setObject:value forKey:key];
 	   [_dictionaryRep autorelease];
 	   _dictionaryRep=nil;
 	   

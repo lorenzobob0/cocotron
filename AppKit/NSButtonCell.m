@@ -30,9 +30,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 @implementation NSButtonCell
 
-// Margin between an image and the Button interior borders
-static const float kImageMargin = 2.;
-
 -(void)encodeWithCoder:(NSCoder *)coder {
    [super encodeWithCoder:coder];
    [coder encodeObject:_titleOrAttributedTitle forKey:@"NSButtonCell title"];
@@ -426,15 +423,13 @@ static const float kImageMargin = 2.;
 }
 
 -(void)setObjectValue:(id <NSCopying>)value {
-    if ([(id)value respondsToSelector:@selector(intValue)])
+   if ([(id)value respondsToSelector:@selector(intValue)])
       [super setState:[(NSNumber *)value intValue]];
    else
       [super setState:0];
 
-    [[self controlView] willChangeValueForKey:@"objectValue"];
    [_objectValue release];
    _objectValue = [[NSNumber numberWithInt:[super state]] retain];
-   [[self controlView] didChangeValueForKey:@"objectValue"];
 
    if( [ [self controlView] respondsToSelector:@selector(updateCell:)] )
 	[(NSControl *)[self controlView] updateCell:self];
@@ -582,21 +577,6 @@ static const float kImageMargin = 2.;
 
     return [self image];
    }
-}
-
--(NSRect)imageRectForBounds:(NSRect)rect {
-    // Make sure we use the same image as will be drawn!
-    NSImage *image = [self imageForHighlight];
-
-    NSSize              imageSize= NSMakeSize(0,0);
-    if (image != nil) {
-        BOOL enabled = [self isEnabled] ? YES : ![self imageDimsWhenDisabled];
-        BOOL mixed = [self state] == NSMixedState;
-        imageSize = [[[self controlView] graphicsStyle] sizeOfButtonImage: image
-                                                                  enabled: enabled
-                                                                    mixed: mixed];
-    }
-    return NSMakeRect(rect.origin.x, rect.origin.y, imageSize.width, imageSize.height);
 }
 
 -(BOOL)isVisuallyHighlighted {
@@ -972,11 +952,10 @@ static NSSize scaledImageSizeInFrameSize(NSSize imageSize,NSSize frameSize,NSIma
    NSImage            *image=[self imageForHighlight];
    BOOL                enabled=[self isEnabled]?YES:![self imageDimsWhenDisabled];
    BOOL                mixed=([self state]==NSMixedState)?YES:NO;
-    NSRect             imageRect = [self imageRectForBounds: frame];
-    NSSize              imageSize=imageRect.size;
-   NSPoint             imageOrigin=imageRect.origin;
+   NSSize              imageSize=(image==nil)?NSMakeSize(0,0):[[controlView graphicsStyle] sizeOfButtonImage:image enabled:enabled mixed:mixed];
+   NSPoint             imageOrigin=frame.origin;
    NSSize              titleSize=[title size];
-    NSRect              titleRect=[self titleRectForBounds:frame];
+   NSRect              titleRect=[self titleRectForBounds:frame];
    BOOL                drawImage=YES,drawTitle=YES;
    NSCellImagePosition imagePosition=[self imagePosition];
 
@@ -994,8 +973,8 @@ static NSSize scaledImageSizeInFrameSize(NSSize imageSize,NSSize frameSize,NSIma
 
    titleRect.origin.y+=floor((titleRect.size.height-titleSize.height)/2);
    titleRect.size.height=titleSize.height;
-
-    switch(imagePosition){
+	titleRect.origin.x += 3; // the title is way to tight to the left edge otherwise
+   switch(imagePosition){
 
     case NSNoImage:
      drawImage=NO;
@@ -1006,28 +985,26 @@ static NSSize scaledImageSizeInFrameSize(NSSize imageSize,NSSize frameSize,NSIma
      break;
 
     case NSImageLeft:
-     imageOrigin.x=frame.origin.x+kImageMargin;
+     imageOrigin.x=frame.origin.x;
      titleRect.origin.x+=imageSize.width+4;
      titleRect.size.width-=imageSize.width+4;
      break;
 
     case NSImageRight:
-     imageOrigin.x=frame.origin.x+(frame.size.width-imageSize.width)-kImageMargin;
+     imageOrigin.x=frame.origin.x+(frame.size.width-imageSize.width);
      titleRect.size.width-=(imageSize.width+4);
      break;
 
     case NSImageBelow:
      imageOrigin.y=frame.origin.y;
      titleRect.origin.y+=imageSize.height;
-     imageOrigin.y = MAX(frame.origin.y, imageOrigin.y);
-     titleRect.origin.y = MIN(frame.origin.y + frame.size.height - titleRect.size.height, titleRect.origin.y);
      break;
 
     case NSImageAbove:
      imageOrigin.y=frame.origin.y+(frame.size.height-imageSize.height);
      titleRect.origin.y-=imageSize.height;
-     imageOrigin.y = MIN(frame.origin.y + frame.size.height - imageSize.height, imageOrigin.y);
-     titleRect.origin.y = MAX(frame.origin.y, titleRect.origin.y);
+     if(titleRect.origin.y<frame.origin.y)
+      titleRect.origin.y=frame.origin.y;
      break;
 
     case NSImageOverlaps:
@@ -1062,7 +1039,6 @@ static NSSize scaledImageSizeInFrameSize(NSSize imageSize,NSSize frameSize,NSIma
 // FIXME: use shadow in attributed string and implement shadow text drawing
         const BOOL pressed=[self state] && ([self showsStateBy] & NSChangeBackgroundCellMask);
         const CGFloat fgGray = (pressed) ? 0.98 : 0.0;
-        const CGFloat fgGrayDisabled = 0.5;
         const CGFloat shadowGray = (pressed) ? 0.07 : 0.93;
         const CGFloat shadowAlpha = ([self isHighlighted]) ? 0.15 : 0.25;
         NSString *baseTitle = [NSString stringWithString:[title string]];
@@ -1079,10 +1055,7 @@ static NSSize scaledImageSizeInFrameSize(NSSize imageSize,NSSize frameSize,NSIma
         }
         
         NSMutableDictionary *fgAttrs = [[shadowAttrs mutableCopy] autorelease];
-		if ([self isEnabled])
-			[fgAttrs setObject:[NSColor colorWithDeviceRed:fgGray green:fgGray blue:fgGray alpha:1.0] forKey:NSForegroundColorAttributeName];
-		else
-			[fgAttrs setObject:[NSColor colorWithDeviceRed:fgGrayDisabled green:fgGrayDisabled blue:fgGrayDisabled alpha:1.0] forKey:NSForegroundColorAttributeName];
+        [fgAttrs setObject:[NSColor colorWithDeviceRed:fgGray green:fgGray blue:fgGray alpha:1.0] forKey:NSForegroundColorAttributeName];
         title = [[[NSAttributedString alloc] initWithString:baseTitle attributes:fgAttrs] autorelease];
     }
     
@@ -1105,11 +1078,11 @@ static NSSize scaledImageSizeInFrameSize(NSSize imageSize,NSSize frameSize,NSIma
 	else
     imageSize=[image size];
 	
-    if(title==nil) {
-        titleSize=NSMakeSize(0,0);
-    }else {
-        titleSize=[title size];
-   }
+   if(title==nil)
+    titleSize=NSMakeSize(0,0);
+   else
+    titleSize=[title size];
+		
    switch([self imagePosition]){
 
     case NSNoImage:
@@ -1121,12 +1094,20 @@ static NSSize scaledImageSizeInFrameSize(NSSize imageSize,NSSize frameSize,NSIma
      break;
       
     case NSImageLeft:
+     result.width=imageSize.width+4+titleSize.width;
+     result.height=MAX(imageSize.height,titleSize.height);
+     break;
+      
     case NSImageRight:
      result.width=imageSize.width+4+titleSize.width;
      result.height=MAX(imageSize.height,titleSize.height);
      break;
       
     case NSImageBelow:
+     result.width=MAX(imageSize.width,titleSize.width);
+     result.height=imageSize.height+4+titleSize.height;
+     break;
+      
     case NSImageAbove:
      result.width=MAX(imageSize.width,titleSize.width);
      result.height=imageSize.height+4+titleSize.height;
@@ -1138,9 +1119,7 @@ static NSSize scaledImageSizeInFrameSize(NSSize imageSize,NSSize frameSize,NSIma
      break;
 	}
 	
-    // Add some margin
-    result.width += 4;
-    if( [self isBordered] || [self isBezeled] ){
+   if( [self isBordered] || [self isBezeled] ){
 		result.width += 4;
 		result.height += 4;
 	}

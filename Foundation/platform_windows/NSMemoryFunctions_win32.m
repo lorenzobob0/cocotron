@@ -5,7 +5,6 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
-#ifdef WINDOWS
 
 #import <Foundation/NSPlatform.h>
 #import <Foundation/NSDebug.h>
@@ -26,12 +25,7 @@ NSUInteger NSPageSize(void) {
 }
 
 void *NSAllocateMemoryPages(NSUInteger byteCount) {
-   void *buffer = VirtualAlloc(NULL,byteCount,MEM_RESERVE|MEM_COMMIT,PAGE_READWRITE);
-    if (buffer == NULL) {
-        DWORD   lastError=GetLastError();
-        fprintf(stderr, "NSAllocateMemoryPages(%d) failed: WinErr: %d\n", byteCount, lastError);
-    }
-    return buffer;
+   return VirtualAlloc(NULL,byteCount,MEM_RESERVE|MEM_COMMIT,PAGE_READWRITE);
 }
 
 void NSDeallocateMemoryPages(void *pointer,NSUInteger byteCount) {
@@ -39,14 +33,12 @@ void NSDeallocateMemoryPages(void *pointer,NSUInteger byteCount) {
 }
 
 void NSCopyMemoryPages(const void *src,void *dst,NSUInteger byteCount) {
-    if (src && dst) {
-       const uint8_t *srcb=src;
-       uint8_t       *dstb=dst;
-       NSUInteger     i;
+   const uint8_t *srcb=src;
+   uint8_t       *dstb=dst;
+   NSUInteger     i;
 
-       for(i=0;i<byteCount;i++)
-        dstb[i]=srcb[i];
-    }
+   for(i=0;i<byteCount;i++)
+    dstb[i]=srcb[i];
 }
 
 NSUInteger NSRealMemoryAvailable(void) {
@@ -95,11 +87,7 @@ NSZone *NSZoneFromPointer(void *pointer){
 }
 
 void *NSZoneCalloc(NSZone *zone,NSUInteger numElems,NSUInteger numBytes){
-   void *buffer = calloc(numElems,numBytes);
-    if (buffer == NULL) {
-        fprintf(stderr, "NSZoneCalloc(zone, %u, %u) failed. Error: %s\n", numElems, numBytes, strerror(errno));
-    }
-    return buffer;
+   return calloc(numElems,numBytes);
 }
 
 void NSZoneFree(NSZone *zone,void *pointer){
@@ -107,26 +95,16 @@ void NSZoneFree(NSZone *zone,void *pointer){
 }
 
 void *NSZoneMalloc(NSZone *zone,NSUInteger size){
-    void *buffer = malloc(size);
-    if (buffer == NULL) {
-        fprintf(stderr, "NSZoneMalloc(zone, %u) failed. Error: %s\n", size, strerror(errno));
-    }
-    return buffer;
+   return malloc(size);
 }
 
 void *NSZoneRealloc(NSZone *zone,void *pointer,NSUInteger size){
-    void *buffer = NULL;
-    if(pointer==NULL) {
-        buffer = malloc(size);
-    }
-    else {
-        buffer = realloc(pointer, size);
-    }
-    if (buffer == NULL && size > 0) {
-        fprintf(stderr, "NSZoneRealloc(zone, %p, %u) failed. Error: %s\n", pointer, size, strerror(errno));
-    }
-    return buffer;
+   if(pointer==NULL)
+    return malloc(size);
+   else
+    return realloc(pointer,size);
 }
+
 
 void NSPlatformSetCurrentThread(NSThread *thread) {
 	TlsSetValue(Win32ThreadStorageIndex(),thread);
@@ -167,7 +145,7 @@ NSThread *NSPlatformCurrentThread() {
 }
 
 /* Create a new thread of execution. */
-NSUInteger NSPlatformDetachThread(unsigned (*__stdcall func)(void *arg), void *arg, NSError **errorp) {
+NSUInteger NSPlatformDetachThread(unsigned (*__stdcall func)(void *arg), void *arg) {
 	uint32_t	threadId = 0;
 	HANDLE win32Handle = (HANDLE)_beginthreadex(NULL, 0, func, arg, 0, &threadId);
 	
@@ -191,4 +169,3 @@ void FoundationThreadCleanup()
     NSPlatformSetCurrentThread(nil);
   }
 }
-#endif

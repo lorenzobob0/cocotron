@@ -490,21 +490,9 @@ static inline RECT transformToRECT(O2AffineTransform matrix,NSRect rect) {
 -(NSSize)menuItemTextSize:(NSString *)title {
 	NSSize result = NSZeroSize;
 	Margins margins = [self menuItemTextMargins];
+	
 	result = [title sizeWithAttributes:sNormalMenuTextAttributes];
-    
-	result.height += (margins.top + margins.bottom);
-	result.width += (margins.left + margins.right);
-	
-	return result;
-}
 
--(NSSize)menuItemAttributedTextSize:(NSAttributedString *)title
-{
-	NSSize result = NSZeroSize;
-	Margins margins = [self menuItemTextMargins];
-    
-	result = [title size];
-	
 	result.height += (margins.top + margins.bottom);
 	result.width += (margins.left + margins.right);
 	
@@ -564,12 +552,8 @@ static inline RECT transformToRECT(O2AffineTransform matrix,NSRect rect) {
 	if(deviceContext==nil)
 		return;
 
-    // Ensure we have enough width - fractional widths give float comparison trouble
-    rect.size.width = ceilf(rect.size.width);
-
 	if ([[deviceContext windowDeviceContext] theme:uxthMENU])
 	{
-
 		Margins margins=[self menuItemTextMargins];
 		
 		rect.origin.x += margins.left;
@@ -588,9 +572,8 @@ static inline RECT transformToRECT(O2AffineTransform matrix,NSRect rect) {
 			[string drawInRect:rect withAttributes:sDimmedMenuTextAttributes];
 		}
 	}
-	else {
+	else
 		[super drawMenuItemText:string inRect:rect enabled:enabled selected:selected];
-    }
 }
 
 -(void)drawMenuBranchArrowInRect:(NSRect)rect enabled:(BOOL)enabled selected:(BOOL)selected {
@@ -719,11 +702,6 @@ static inline RECT transformToRECT(O2AffineTransform matrix,NSRect rect) {
 
 @implementation NSGraphicsStyle_uxtheme (NSOutlineView)
 
--(void)drawOutlineViewBranchInRect:(NSRect)rect expanded:(BOOL)expanded {
-   if(![self drawPartId:TVP_GLYPH stateId:expanded?GLPS_OPENED:GLPS_CLOSED uxthClassId:uxthTREEVIEW inRect:rect])
-    [super drawOutlineViewBranchInRect:rect expanded:expanded];
-}
-
 -(NSRect)drawProgressIndicatorBackground:(NSRect)rect clipRect:(NSRect)clipRect bezeled:(BOOL)bezeled {
    if(bezeled){
     if([self drawPartId:PP_BAR stateId:0 uxthClassId:uxthPROGRESS inRect:rect])
@@ -784,15 +762,11 @@ static inline RECT transformToRECT(O2AffineTransform matrix,NSRect rect) {
 @implementation NSGraphicsStyle_uxtheme (NSTableView)
 
 -(void)drawTableViewHeaderInRect:(NSRect)rect highlighted:(BOOL)highlighted {
-   rect.origin.y    -= 1.0;
-   rect.size.height += 1.0;
    if(![self drawPartId:HP_HEADERITEM stateId:highlighted?HIS_PRESSED:HIS_NORMAL uxthClassId:uxthHEADER inRect:rect])
     [super drawTableViewHeaderInRect:rect highlighted:highlighted];
 }
 
 -(void)drawTableViewCornerInRect:(NSRect)rect {
-   rect.origin.y    -= 1.0;
-   rect.size.height += 1.0;
    if(![self drawPartId:HP_HEADERITEM stateId:HIS_NORMAL uxthClassId:uxthHEADER inRect:rect])
     [super drawTableViewCornerInRect:rect];
 }

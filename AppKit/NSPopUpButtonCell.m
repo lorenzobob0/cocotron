@@ -34,14 +34,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 -initWithCoder:(NSCoder *)coder {
    [super initWithCoder:coder];
-   if([coder allowsKeyedCoding]){
+
+   if([coder allowsKeyedCoding]){ 
     _pullsDown=[coder decodeBoolForKey:@"NSPullDown"];
     _menu=[[coder decodeObjectForKey:@"NSMenu"] retain];
     _selectedIndex=[coder decodeIntForKey:@"NSSelectedIndex"];
     _arrowPosition = [coder decodeIntForKey: @"NSArrowPosition"];
     _preferredEdge = [coder decodeIntForKey: @"NSPreferredEdge"];
     _usesItemFromMenu=[coder decodeBoolForKey:@"NSUsesItemFromMenu"];
-
+    
     [self synchronizeTitleAndSelectedItem];
    }
    else {
@@ -87,10 +88,6 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 
 -(BOOL)autoenablesItems {
    return _autoenablesItems;
-}
-
--(NSPopUpArrowPosition)arrowPosition {
-    return _arrowPosition;
 }
 
 -(NSRectEdge)preferredEdge {
@@ -180,26 +177,18 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    _autoenablesItems=value?YES:NO;
 }
 
--(void)setArrowPosition:(NSPopUpArrowPosition)position {
-    _arrowPosition = position;
-}
-
 -(void)setPreferredEdge:(NSRectEdge)edge {
    edge=_preferredEdge;
 }
 
 -(void)_addItemWithTitle:(NSString *)title {
-    
-    NSMenuItem *duplicate=[_menu itemWithTitle: title];
-    if (duplicate != nil) {
-        // don't allow items with duplicate titles by default
-        [_menu removeItem: duplicate];
-    }
-    
-   [_menu addItemWithTitle:title action:@selector(_popUpItemAction:) keyEquivalent:nil];
-    NSMenuItem *item=[[_menu itemArray] lastObject];
-    [item setTarget: self];
-    
+   NSMenuItem *check=[_menu itemWithTitle:title];
+   
+   if(check!=nil)
+    [_menu removeItem:check];
+   
+   [_menu addItemWithTitle:title action:NULL keyEquivalent:nil];
+
    if(_selectedIndex<0)
     _selectedIndex=0;
 }
@@ -240,29 +229,23 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 }
 
 -(void)insertItemWithTitle:(NSString *)title atIndex:(NSInteger)index {
-   [_menu insertItemWithTitle:title action:@selector(_popUpItemAction:) keyEquivalent:nil atIndex:index];
-    NSMenuItem *check=[_menu itemAtIndex:index];
-    [check setTarget: self];
-
+   [_menu insertItemWithTitle:title action:NULL keyEquivalent:nil atIndex:index];
    [self synchronizeTitleAndSelectedItem];
 }
 
 -(void)selectItem:(NSMenuItem *)item {
+   [self willChangeValueForKey:@"selectedItem"];
 
-    NSInteger selectedIndex = _selectedIndex;
    if(item==nil)
-    selectedIndex=-1;
+    _selectedIndex=-1;
    else {
     NSInteger check=[[_menu itemArray] indexOfObjectIdenticalTo:item];
     
-    selectedIndex=(check==NSNotFound)?-1:check;
+    _selectedIndex=(check==NSNotFound)?-1:check;
    }
+      
+   [self didChangeValueForKey:@"selectedItem"];
 
-    if (selectedIndex != _selectedIndex) {
-        [self willChangeValueForKey:@"selectedItem"];
-        _selectedIndex = selectedIndex;
-        [self didChangeValueForKey:@"selectedItem"];
-    }
    [self synchronizeTitleAndSelectedItem];
 }
 
@@ -312,9 +295,8 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
    else {
     item=[itemArray objectAtIndex:_selectedIndex];
    }
-  [super setTitle:[item title]];
-    // For a redraw of the control
-  [(NSControl *)[self controlView] updateCell:self];
+   
+   [super setTitle:[item title]];
 }
 
 
@@ -417,41 +399,15 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     NSMenuItem *item=[_menu itemWithTitle:title];
    
     if(item==nil)
-        [self addItemWithTitle:title];
+     [self addItemWithTitle:title];
 
     [self selectItemWithTitle:title];
    }
 }
 
-// From Cocoa doc :
-// This method has no effect.
-// The image displayed in a pop up button is taken from the selected menu item (in the case of a pop up menu) or
-// from the first menu item (in the case of a pull-down menu).
--(void)setImage:(NSImage *)image
-{
-    
-}
 
--(NSImage *)image
-{
-    NSArray    *itemArray=[_menu itemArray];
-    NSMenuItem *item=nil;
-    if(_selectedIndex<0 || _pullsDown){
-        if([itemArray count]>0)
-            item=[itemArray objectAtIndex:0];
-    }
-    else {
-        item=[itemArray objectAtIndex:_selectedIndex];
-    }
-    return [item image];
-}
-
-
--(NSCellImagePosition)imagePosition
-{
-    // It seems Cocoa popup buttons never ignore the image - they are drawn at Left position if set to None
-    NSCellImagePosition imagePosition = [super imagePosition];
-    return imagePosition==NSNoImage?NSImageLeft:imagePosition;
+-(NSCellImagePosition)imagePosition {
+   return NSImageRight;
 }
 
 -(NSInteger)tag {
@@ -490,17 +446,14 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 		menu = [[_menu copy] autorelease];
 		[menu removeItemAtIndex:0];
 	}
-    [menu update];
-    
 	NSPopUpWindow *window=[[NSPopUpWindow alloc] initWithFrame:NSMakeRect(origin.x,origin.y,
 														   cellFrame.size.width,cellFrame.size.height)];
-    [window setPullsDown:_pullsDown];
 	[window setMenu:menu];
    if([self font]!=nil)
     [window setFont:[self font]];
 
    if(_pullsDown)
-    [window selectItemAtIndex:-1]; // No initial selection for pullsDown
+    [window selectItemAtIndex:0];
    else
     [window selectItemAtIndex:_selectedIndex];
 
@@ -510,17 +463,12 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 			// remember that thing we did with the first menu item?
 			itemIndex++;
 		}
-        // We can be embedded in controls other than a PopUpButton - so don't
-        // assume selectItemAtIndex: is available
-        if ([controlView respondsToSelector: @selector(selectItemAtIndex:)]) {
-            [(id)controlView selectItemAtIndex:itemIndex];
-        }
+		[(NSPopUpButton*)controlView selectItemAtIndex:itemIndex];
 	}
-    _selectedIndex = (itemIndex == NSNotFound) ? -1 : itemIndex;
    [window close]; // release when closed=YES
 //	[[_menu delegate] menuDidClose: _menu];
 
-   return itemIndex!=NSNotFound;
+   return YES;
 }
 
 -(void)moveUp:sender {
@@ -537,14 +485,4 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
     [self selectItemAtIndex:index+1];
 }
 
-
-/* That's the action the menu items are connected to in nibs */
-- (void)_popUpItemAction:(id)sender
-{
-    NSUInteger itemIndex = [_menu indexOfItem: sender];
-    if (itemIndex != NSNotFound) {
-        [self selectItemAtIndex: itemIndex];
-    }
-    [NSApp sendAction: [self action] to: [self target] from: _controlView];
-}
 @end

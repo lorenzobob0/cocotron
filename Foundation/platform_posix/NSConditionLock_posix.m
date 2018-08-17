@@ -5,7 +5,7 @@
  The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE. */
-#ifdef PLATFORM_IS_POSIX
+
 #import <Foundation/NSConditionLock_posix.h>
 #import <Foundation/NSException.h>
 #import <Foundation/NSRaiseException.h>
@@ -32,7 +32,6 @@
 -(void)dealloc {
    pthread_mutex_destroy(&_mutex);
    pthread_cond_destroy(&_cond);
-   [_name release]; _name = nil;
    [super dealloc];
 }
 
@@ -126,14 +125,9 @@
     int rc;
     gettimeofday(&tv,NULL);
     NSTimeInterval d=[date timeIntervalSinceNow];
-    t.tv_sec= tv.tv_sec + (unsigned int)d;
+    t.tv_sec= tv.tv_sec + (unsigned int)d + 1;
     t.tv_nsec=tv.tv_usec*1000 + fmod(d, 1.0)*1000000.0;
     
-    if (t.tv_nsec >= 1000000000) {
-        t.tv_sec++;
-        t.tv_nsec -= 1000000000;
-    }
-
     if((rc = pthread_mutex_lock(&_mutex)) != 0) {
         [NSException raise:NSInvalidArgumentException format:@"failed to lock %@ (errno: %d)", self, rc];
     }
@@ -164,13 +158,8 @@
     int rc;
     gettimeofday(&tv,NULL);
     NSTimeInterval d=[date timeIntervalSinceNow];
-    t.tv_sec= tv.tv_sec + (unsigned int)d;
+    t.tv_sec= tv.tv_sec + (unsigned int)d + 1;
     t.tv_nsec=tv.tv_usec*1000 + fmod(d, 1.0)*1000000.0;
-
-    if (t.tv_nsec >= 1000000000) {
-        t.tv_sec++;
-        t.tv_nsec -= 1000000000;
-    }
 
     if((rc = pthread_mutex_lock(&_mutex)) != 0) {
         [NSException raise:NSInvalidArgumentException format:@"failed to lock %@ (errno: %d)", self, rc];
@@ -200,13 +189,4 @@
     return YES;
 }
 
-- (NSString *)name {
-    return _name; }
-
-- (void)setName:(NSString *)name {
-    [_name release];
-    _name = [name copy];
-}
-
 @end
-#endif

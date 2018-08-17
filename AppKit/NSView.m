@@ -516,9 +516,8 @@ static inline void buildTransformsIfNeeded(NSView *self) {
    return [self acceptsFirstResponder] && ![self isHiddenOrHasHiddenAncestor];
 }
 
-// Cocoa does that for views, despite the "The default implementation returns NO" from the documentation
 -(BOOL)needsPanelToBecomeKey {
-    return [self acceptsFirstResponder];
+   return NO;
 }
 
 -(NSView *)nextKeyView {
@@ -827,24 +826,21 @@ static inline void buildTransformsIfNeeded(NSView *self) {
 }
 
 -(void)_setWindow:(NSWindow *)window {
-    if (_window != window) {
-        BOOL windowRecalulatesKeyViewLoop = [window autorecalculatesKeyViewLoop];
-        if (windowRecalulatesKeyViewLoop)
-            [self setNextKeyView:nil];
-
-        [self viewWillMoveToWindow:window];
-
-        _window=window;
-
-        [_subviews makeObjectsPerformSelector:_cmd withObject:window];
-        _validTrackingAreas=NO;
-        [_window invalidateCursorRectsForView:self]; // this also invalidates tracking areas
-
-        if (windowRecalulatesKeyViewLoop)
-            [_window recalculateKeyViewLoop];
-
-        [self viewDidMoveToWindow];
-    }
+    if(_window!=window)
+        [self setNextKeyView:nil];
+    
+    [self viewWillMoveToWindow:window];
+    
+    _window=window;
+    
+    [_subviews makeObjectsPerformSelector:_cmd withObject:window];
+    _validTrackingAreas=NO;
+    [_window invalidateCursorRectsForView:self]; // this also invalidates tracking areas
+    
+    if([_window autorecalculatesKeyViewLoop])
+        [_window recalculateKeyViewLoop];
+    
+    [self viewDidMoveToWindow];
 }
 
 -(void)_setSuperview:superview {
@@ -954,16 +950,16 @@ static inline void buildTransformsIfNeeded(NSView *self) {
 }
 
 -(void)_setPreviousKeyView:(NSView *)previous {
-    _previousKeyView = previous;
+   _previousKeyView=previous;
 }
 
 -(void)setNextKeyView:(NSView *)next {
-    if (next)
-        [next _setPreviousKeyView:self];
-    else
+    if(next==nil)
         [_nextKeyView _setPreviousKeyView:nil];
+    else
+        [_nextKeyView _setPreviousKeyView:self];
 
-    _nextKeyView = next;
+    _nextKeyView=next;
 }
 
 -(BOOL)acceptsFirstMouse:(NSEvent *)event {
@@ -1155,9 +1151,7 @@ static inline void buildTransformsIfNeeded(NSView *self) {
 }
 
 -(void)registerForDraggedTypes:(NSArray *)types {
-   types=[types copy];
-   [_draggedTypes release];
-   _draggedTypes=types;
+   _draggedTypes=[types copy];
 }
 
 -(void)unregisterDraggedTypes {
@@ -1357,56 +1351,66 @@ static inline void buildTransformsIfNeeded(NSView *self) {
 }
 
 -(BOOL)scrollRectToVisible:(NSRect)rect {
-    NSClipView *clipView = [self _enclosingClipView];
-    NSView *documentView = [clipView documentView];
-    // Current the document view visible rect in document view space
-    NSRect vRect = [clipView documentVisibleRect];
-    // Convert what we want in the document view space 
-    rect = [documentView convertRect:rect fromView:self];
-    
-    // Do the minimal amount of scrolling to show the rect
-    
-    // Missing amount on the four directions
-    float missingLeft = NSMinX(vRect) - NSMinX(rect);
-    float missingRight = NSMaxX(rect) - NSMaxX(vRect);
+    NSClipView *clipView=[self _enclosingClipView];
+    NSRect      vRect=[self visibleRect];
+    NSPoint     sPoint;
 
-    float missingTop = NSMinY(vRect) - NSMinY(rect);
-    float missingBottom = NSMaxY(rect) - NSMaxY(vRect);
-    
-    float dx = 0.;
-    float dy = 0.;
-    
-    if (missingLeft * missingRight < 0) {
-        // We need to scroll in one direction - no need to scroll if we're missing bits both ways or
-        // if everything is visible
-        
-        // Let's do the minimal amount of scrolling
-        if (fabs(missingLeft) < fabs(missingRight)) {
-            dx = -missingLeft;
-        } else {
-            dx = missingRight;
-        }
+    if(NSPointInRect(rect.origin,vRect) && NSPointInRect(NSMakePoint(NSMaxX(rect),NSMaxY(rect)),vRect))
+     return NO;
+
+    if(!NSIntersectsRect(rect,vRect)){
+     if(rect.size.height<vRect.size.height){
+      float delta=vRect.size.height-rect.size.height;
+ 
+      rect.origin.y-=delta/2;
+      rect.size.height+=delta;     
+     }
+     else {
+      float delta=rect.size.height-vRect.size.height;
+
+      rect.origin.y+=delta/2;
+      rect.size.height-=delta;
+     }
+
+#if 0 // this doesn't work well for NSOutlineView, probably a bug in NSOutlineView
+     if(rect.size.width<vRect.size.width){
+      float delta=vRect.size.width-rect.size.width;
+
+      rect.origin.x-=delta/2;
+      rect.size.width+=delta;
+     }
+     else {
+      float delta=rect.size.width-vRect.size.width;
+
+      rect.origin.x+=delta/2;
+      rect.size.width-=delta;
+     }
+#endif
     }
 
-    if (missingTop * missingBottom < 0) {
-        // We need to scroll in one direction - no need to scroll if we're missing bits both ways or
-        // if everything is visible
-        
-        // Let's do the minimal amount of scrolling
-        if (fabs(missingTop) < fabs(missingBottom)) {
-            dy = -missingTop;
-        } else {
-            dy = missingBottom;
-        }
+    rect=NSIntersectionRect(rect,[self bounds]); // necessary
+
+    if(clipView!=nil && !NSIsEmptyRect(vRect)) {
+     if(NSMinX(rect)<=NSMinX(vRect))
+      sPoint.x=NSMinX(rect);
+     else if(NSMaxX(rect)>NSMaxX(vRect))
+      sPoint.x=NSMinX(vRect)+(NSMaxX(rect)-NSMaxX(vRect));
+     else
+      sPoint.x=NSMinX(vRect);
+
+     if(NSMinY(rect)<=NSMinY(vRect))
+      sPoint.y=NSMinY(rect);
+     else if(NSMaxY(rect)>NSMaxY(vRect))
+      sPoint.y=NSMinY(vRect)+(NSMaxY(rect)-NSMaxY(vRect));
+     else
+      sPoint.y=NSMinY(vRect);
+
+     if(sPoint.x!=NSMinX(vRect) || sPoint.y!=NSMinY(vRect)){
+      [clipView scrollToPoint:[self convertPoint:sPoint toView:clipView]];
+      return YES;
+     }
     }
-    if (dx != 0 || dy != 0) {
-        NSPoint pt = vRect.origin;
-        pt.x += dx;
-        pt.y += dy;
-        pt = [documentView convertPoint:pt toView:clipView];
-        [clipView scrollToPoint:pt];
-        return YES;
-    }
+    
     return NO;
 }
 
@@ -1668,7 +1672,7 @@ static void clearRectsBeingRedrawn(NSView *self){
 		NSZoneFree(NULL, self->_rectsBeingRedrawn);
 		self->_rectsBeingRedrawn = NULL;
 		self->_rectsBeingRedrawnCount = 0;
-	}
+	}	
 }
 
 static void clearInvalidRects(NSView *self){
@@ -1677,7 +1681,6 @@ static void clearInvalidRects(NSView *self){
    self->_invalidRects=NULL;
    self->_invalidRectCount=0;
 	clearRectsBeingRedrawn(self);
-
 }
 
 static void clearNeedsDisplay(NSView *self){
@@ -1691,7 +1694,7 @@ static void clearNeedsDisplay(NSView *self){
 -(void)setNeedsDisplay:(BOOL)flag {
    _needsDisplay=flag;
 
-// We removed them for YES to indicate entire view, and NO for obvious reasons
+// We removed them for YES to indicate entire view, and NO for obvious reasons   
    clearInvalidRects(self);
    
    if(_needsDisplay)
@@ -1701,29 +1704,24 @@ static void clearNeedsDisplay(NSView *self){
 -(void)setNeedsDisplayInRect:(NSRect)rect {
 // We only add rects if its not the entire view
    if(!_needsDisplay || _invalidRects!=NULL){
-       NSRect visibleRect = [self visibleRect];
-       rect = NSIntersectionRect(visibleRect, rect);
-       if (NSContainsRect(rect, visibleRect)) {
-           clearInvalidRects(self); // Everything is dirty
-       } else {
-           // All of our clipping done by the context is rounded - so we need to do the same
-           // here else we might get some artifact on clipping borders
-           rect = [self convertRect:rect toView:nil];
-           rect = NSIntegralRect(rect);
-           rect = [self convertRect:rect fromView:nil];
-           _invalidRectCount++;
-           _invalidRects=NSZoneRealloc(NULL,_invalidRects,sizeof(NSRect)*_invalidRectCount);
-           _invalidRects[_invalidRectCount-1]=rect;
-	   }
-       clearRectsBeingRedrawn(self);
-       
-	   // We also needs to be sure all of our superviews will properly redraw this area,
+	   // All of our clipping done by the context is rounded - so we need to do the same
+	   // here else we might get some artifact on clipping borders
+	   rect = [self convertRect:rect toView:nil];
+	   rect = NSIntegralRect(rect);
+	   rect = [self convertRect:rect fromView:nil];
+	   _invalidRectCount++;
+	   _invalidRects=NSZoneRealloc(NULL,_invalidRects,sizeof(NSRect)*_invalidRectCount);
+	   _invalidRects[_invalidRectCount-1]=rect;
+	   
+	   clearRectsBeingRedrawn(self);
+
+	   // We also needs to be sure all of our superviews will properly redraw this area, 
 	   // even if they are smart about what to redraw (using needsDisplayInRect:)
 	   NSView *opaqueAncestor = [self opaqueAncestor];
 	   if (opaqueAncestor != self) {
 			NSRect dirtyRect = [self convertRect:rect toView:opaqueAncestor];
 			[opaqueAncestor setNeedsDisplayInRect:dirtyRect];
-       }
+	   }
    }
    
    _needsDisplay=YES;
@@ -1842,6 +1840,9 @@ static NSGraphicsContext *graphicsContextForView(NSView *view){
 			for(int i=0; i<count && needsToDrawRect == NO;i++) {
 				needsToDrawRect = NSIntersectsRect(rect, rects[i]);
 			}		
+		} else {
+			// No rect = the full visible rect is being drawn
+			needsToDrawRect = YES;
 		}
 	}
 	return needsToDrawRect;
@@ -2017,6 +2018,7 @@ static NSGraphicsContext *graphicsContextForView(NSView *view){
 
    if(opaque!=self)
     rect=[self convertRect:rect toView:opaque];
+
    [opaque displayRectIgnoringOpacity:rect];
 }
 
@@ -2028,12 +2030,13 @@ static NSGraphicsContext *graphicsContextForView(NSView *view){
    if(NSIsEmptyRect(rect))
     return;
     
-   if ([self canDraw]) {
-      // This view must be locked/unlocked prior to drawing subviews otherwise gState changes may affect subviews.
-      [self lockFocus];
+   if([self canDraw]){
 
-      NSGraphicsContext *context=[NSGraphicsContext currentContext];
-      CGContextRef       graphicsPort=[context graphicsPort];
+// This view must be locked/unlocked prior to drawing subviews otherwise gState changes may affect
+// subviews.
+    [self lockFocus];
+    NSGraphicsContext *context=[NSGraphicsContext currentContext];
+    CGContextRef       graphicsPort=[context graphicsPort];
 
 	   CGContextClipToRect(graphicsPort,rect);
 	   
@@ -2041,34 +2044,35 @@ static NSGraphicsContext *graphicsContextForView(NSView *view){
 	   NSUInteger rectsCount;
 	   [self getRectsBeingDrawn:&rects count:&rectsCount];
 	   // If there is only one rect, it's the visible rect - it's already clipped
-	   if (rectsCount > 1)
+	   if (rectsCount > 1) {
  		   CGContextClipToRects(graphicsPort, rects, rectsCount);
+	   }
 
-      // [_window dirtyRect:[self convertRect:rect toView:nil]];
 	   if ([NSGraphicsContext inQuartzDebugMode]) {
 		   [[NSColor yellowColor] set];
 		   NSRectFill(rect);
-	   }
-      else
+	   } else {
 		   [self drawRect:rect];
+	   }
+    [self unlockFocus];
 
-      [self unlockFocus];
-
-	   NSEnumerator *viewEnumerator = [self _subviewsInDisplayOrderEnumerator];
 	   
-	   NSView *child = nil;
+	   NSEnumerator* viewEnumerator = [self _subviewsInDisplayOrderEnumerator];
+	   
+	   NSView* child = nil;
 	   while ((child = [viewEnumerator nextObject])) {
-		   NSRect check=[self convertRect:rect toView:child];
+		   NSRect  check=[self convertRect:rect toView:child];
 
 		   check=NSIntersectionRect(check,[child bounds]);
 		   
-		   if(!NSIsEmptyRect(check))
+		   if(!NSIsEmptyRect(check)){
 			   [child displayRectIgnoringOpacity:check];
+		   }
 	   }
    }
 
    [_layerContext render];
-
+   
 	// Don't do anything to interfere with what will be drawn in non-debug mode
 	if ([NSGraphicsContext inQuartzDebugMode] == NO) {
 		removeRectFromInvalidInVisibleRect(self,rect,visibleRect);
@@ -2077,9 +2081,7 @@ static NSGraphicsContext *graphicsContextForView(NSView *view){
 		clearRectsBeingRedrawn(self);
 	}
 
-   // We do the flushWindow here. If any of the display* methods are being used, you want it to update on screen immediately.
-   // If the view hierarchy is being displayed as needed at the end of an event, flushing will be disabled and this will just
-   // mark the window as needing flushing which will happen when all the views have finished being displayed
+/*  We do the flushWindow here. If any of the display* methods are being used, you want it to update on screen immediately. If the view hierarchy is being displayed as needed at the end of an event, flushing will be disabled and this will just mark the window as needing flushing which will happen when all the views have finished being displayed */
    [[self window] flushWindow];
 }
 
@@ -2255,28 +2257,19 @@ static NSGraphicsContext *graphicsContextForView(NSView *view){
 -(void)scrollWheel:(NSEvent *)event {
     NSScrollView *scrollView=[self enclosingScrollView];
     
-    if(scrollView==nil) {
-        /* If we can't handle it, pass up responder chain, yep, it does this. */
-        [super scrollWheel:event];
-    }
-    else {
+    if(scrollView!=nil){
         NSView *documentView=[scrollView documentView];
         NSRect bounds=[documentView bounds];
         NSRect visible=[documentView visibleRect];
         float  direction=[documentView isFlipped]?-1:1;
         
-        visible.origin.x+=[event deltaX]*[scrollView horizontalLineScroll]*3;
         visible.origin.y+=[event deltaY]*direction*[scrollView verticalLineScroll]*3;
         
         // Something equivalent to this should be in scrollRectToVisible:
         if(visible.origin.y<bounds.origin.y)
             visible.origin.y=bounds.origin.y;
-        if(visible.origin.x<bounds.origin.x)
-            visible.origin.x=bounds.origin.x;
         if(NSMaxY(visible)>NSMaxY(bounds))
             visible.origin.y=NSMaxY(bounds)-visible.size.height;
-        if(NSMaxX(visible)>NSMaxX(bounds))
-            visible.origin.x=NSMaxX(bounds)-visible.size.width;
         
         [documentView scrollRectToVisible:visible];
     }
@@ -2407,3 +2400,4 @@ static NSGraphicsContext *graphicsContextForView(NSView *view){
 }
 
 @end
+

@@ -35,6 +35,7 @@
      break;
  
     default:
+     NSUnimplementedMethod();
      return nil;
    }
    

@@ -67,11 +67,6 @@ const NSTimeInterval NSTimeIntervalSince1970 = (NSTimeInterval)978307200.0;
      NSPlatformTimeIntervalSinceReferenceDate()+seconds];
 }
 
--initWithTimeIntervalSince1970:(NSTimeInterval)seconds {
-    return [self initWithTimeIntervalSinceReferenceDate:
-            -NSTimeIntervalSince1970+seconds];
-}
-
 -initWithTimeInterval:(NSTimeInterval)seconds sinceDate:(NSDate *)other {
    return [self initWithTimeIntervalSinceReferenceDate:
      [other timeIntervalSinceReferenceDate]+seconds];
@@ -96,7 +91,8 @@ const NSTimeInterval NSTimeIntervalSince1970 = (NSTimeInterval)978307200.0;
 }
 
 +dateWithTimeIntervalSince1970:(NSTimeInterval)seconds {
-   return [[[self allocWithZone:NULL] initWithTimeIntervalSince1970:seconds] autorelease];
+   return [[[self allocWithZone:NULL] initWithTimeIntervalSinceReferenceDate:
+     -NSTimeIntervalSince1970+seconds] autorelease];
 }
 
 
@@ -233,14 +229,6 @@ const NSTimeInterval NSTimeIntervalSince1970 = (NSTimeInterval)978307200.0;
 
     // nil locale is handled within this function
     return NSStringWithDateFormatLocale([self timeIntervalSinceReferenceDate], format,locale,timeZone);
-}
-
-@end
-
-@implementation NSDate(NSCalendarDateExtras)
-
-+ (id)dateWithNaturalLanguageString:(NSString *)string {
-   NSUnimplementedMethod();
 }
 
 @end

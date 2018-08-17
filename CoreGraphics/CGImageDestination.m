@@ -4,7 +4,6 @@
 
 const CFStringRef kCGImageDestinationLossyCompressionQuality=(CFStringRef)@"kCGImageDestinationLossyCompressionQuality";
 const CFStringRef kCGImageDestinationBackgroundColor=(CFStringRef)@"kCGImageDestinationBackgroundColor";
-const CFStringRef kCGImageDestinationDPI=(CFStringRef)@"kCGImageDestinationDPI";
 
 CFTypeID CGImageDestinationGetTypeID(void) {
    return O2ImageDestinationGetTypeID();

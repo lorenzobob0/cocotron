@@ -48,10 +48,6 @@ enum {
    _font=[font retain];
 }
 
--(void)setSelectedIndex:(int)index {
-   _selectedIndex = index;
-}
-
 -(NSDictionary *)itemAttributes {
    return [NSDictionary dictionaryWithObjectsAndKeys:
     _font,NSFontAttributeName,
@@ -246,7 +242,7 @@ enum {
     }
     [[self window] flushWindow];
 
-    event=[[self window] nextEventMatchingMask:NSLeftMouseDownMask|NSLeftMouseUpMask|NSLeftMouseDraggedMask|NSKeyDownMask];
+    event=[[self window] nextEventMatchingMask:NSLeftMouseUpMask|NSLeftMouseDraggedMask|NSKeyDownMask];
     if ([event type] == NSKeyDown) {
         [self interpretKeyEvents:[NSArray arrayWithObject:event]];
         switch (_keyboardUIState) {

@@ -13,34 +13,98 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 #import <Foundation/NSThread-Private.h>
 #import <Foundation/NSRaiseException.h>
 
-#import <objc/objc_arc.h>
-
 @implementation NSAutoreleasePool
 
+#define PAGESIZE 1024
+
+void objc_noAutoreleasePool(id object) {
+   NSCLog("autorelease pool is nil, leaking %x %s",object,object_getClassName(object));
+}
+
+static inline void addObject(NSAutoreleasePool *self,id object){
+   if(self==nil){
+    objc_noAutoreleasePool(object);
+    return;
+   }
+   
+   if(self->_nextSlot>=self->_pageCount*PAGESIZE){
+    self->_pageCount++;
+    self->_pages=NSZoneRealloc(NULL,self->_pages,self->_pageCount*sizeof(id *));
+    self->_pages[self->_pageCount-1]=NSZoneMalloc(NULL,PAGESIZE*sizeof(id));
+   }
+
+   self->_pages[self->_nextSlot/PAGESIZE][self->_nextSlot%PAGESIZE]=object;
+   self->_nextSlot++;
+}
+
 +(void)addObject:object {
-    objc_autorelease(object);
+   if(NSThreadCurrentPool()==nil)
+    [NSException raise:@"NSAutoreleasePoolException"
+                format:@"NSAutoreleasePool no current pool"];
+
+   addObject(NSThreadCurrentPool(),object);
 }
 
 -init {
-    _pool=objc_autoreleasePoolPush();
+   NSAutoreleasePool *current=NSThreadCurrentPool();
+
+   _parent=current;
+
+   _pageCount=1;
+   _pages=NSZoneMalloc(NULL,_pageCount*sizeof(id *));
+   _pages[0]=NSZoneMalloc(NULL,PAGESIZE*sizeof(id));
+   _nextSlot=0;
+
+   if(current!=nil)
+    current->_childPool=self;
+   _childPool=nil;
+
+   NSThreadSetCurrentPool(self);
+
    return self;
 }
 
 -(void)dealloc {
-    objc_autoreleasePoolPop(_pool);
+   int i;
 
+   [_childPool release];
+
+   for(i=0;i<_nextSlot;i++){
+    NS_DURING
+     id object=_pages[i/PAGESIZE][i%PAGESIZE];
+
+     [object release];
+    NS_HANDLER
+     NSLog(@"Exception while autoreleasing %@",localException);
+    NS_ENDHANDLER
+   }
+
+   for(i=0;i<_pageCount;i++)
+    NSZoneFree(NULL,_pages[i]);
+
+   NSZoneFree(NULL,_pages);
+
+   NSThreadSetCurrentPool(_parent);
+
+   if(_parent!=nil)
+    _parent->_childPool=nil;
+
+   NSDeallocateObject(self);
+   return;
    [super dealloc];
 }
 
 -(void)addObject:object {
-    objc_autoreleasePoolAdd(_pool,object);
+   addObject(self,object);
 }
 
 id NSAutorelease(id object){
-    return objc_autorelease(object);
+   addObject(NSThreadCurrentPool(),object);
+   return object;
 }
 
--(void)drain {
+-(void)drain
+{
 	[self release];
 }
 

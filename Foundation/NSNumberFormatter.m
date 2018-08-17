@@ -1261,65 +1261,45 @@ static BOOL numberIsPositive(NSNumber *number){
 
 -(NSNumber *)_numberFromString:(NSString *)string error:(NSString **)error
 {
-    // Note: this method is still quite incomplete compared to the thousand of formatting combinations you can set on a number
-    // formatter...
-    
+    // simple test of characters...
+    NSMutableCharacterSet *digitsAndSeparators = [[[NSCharacterSet decimalDigitCharacterSet] mutableCopy] autorelease];
     NSMutableString *mutableString = [[string mutableCopy] autorelease];
     unichar thousandSeparator = [_thousandSeparator characterAtIndex:0];
     
+    [digitsAndSeparators addCharactersInString:_decimalSeparator];
+    if (_hasThousandSeparators) {
+        [digitsAndSeparators addCharactersInString:_thousandSeparator];
+    }
     for (NSUInteger i = 0; i < [mutableString length]; ++i) {
+        if (![digitsAndSeparators characterIsMember:[mutableString characterAtIndex:i]]) {
+            if (error != NULL) {
+                *error = NSLocalizedStringFromTableInBundle(@"Invalid number", nil, [NSBundle bundleForClass: [NSNumberFormatter class]], @"");
+            }
+            return nil;
+        }
+        
         // take out the thousand separator
         if (_hasThousandSeparators && [mutableString characterAtIndex:i] == thousandSeparator) {
             [mutableString deleteCharactersInRange:NSMakeRange(i, 1)];
         }
     }
-    // Locale to use to parse the string
-    NSLocale *locale = _locale;
-    if (locale == nil) {
-        locale = [NSLocale currentLocale];
-    }
-    if (_decimalSeparator) {
-        // Replace the decimal separator to the scanner locale one so the scanner can properly parse the string in case the formatter custom
-        // separator doesn't match the locale one
-        NSString *localeDecimalSeparator = [locale objectForKey:NSLocaleDecimalSeparator];
-        if (localeDecimalSeparator) {
-            [mutableString replaceOccurrencesOfString:_decimalSeparator withString:localeDecimalSeparator options:0 range:NSMakeRange(0, [mutableString length])];
-        }
-    }
-
     NSScanner *scanner = [NSScanner scannerWithString: mutableString];
-    [scanner setLocale: (id)locale];
-
+    if (_locale) {
+        [scanner setLocale: (id)_locale];
+    } else {
+        [scanner setLocale:[NSLocale currentLocale]];
+    }
     float value;
     NSNumber *number = nil;
-    BOOL isValid = YES;
     if ([scanner scanFloat:&value] == NO) {
-        isValid = NO;
-    } else {
-        if (![scanner isAtEnd]) {
-            // The number is valid only if the remaining string is the suffix
-            NSString *suffix = value>=0?[self positiveSuffix]:[self negativeSuffix];
-            if ([suffix length]) {
-                NSString *remainingString = [[scanner string] substringFromIndex:[scanner scanLocation]];
-                if (![remainingString isEqualToString:suffix]) {
-                    isValid = NO;
-                }
-            } else {
-                isValid = NO;
-            }
-        }
-        if (isValid) {
-            if ([self multiplier]) {
-                value /= [[self multiplier] floatValue];
-            }
-            number = [NSNumber numberWithFloat:value];
-        }
-    }
-    if (isValid == NO) {
         if (error != NULL) {
             *error = NSLocalizedStringFromTableInBundle(@"Invalid number", nil, [NSBundle bundleForClass: [NSNumberFormatter class]], @"");
         }
-        number = nil;
+    } else {
+        if ([self multiplier]) {
+            value /= [[self multiplier] floatValue];
+        }
+        number = [NSNumber numberWithFloat:value];
     }
     return number;
 }
@@ -1598,7 +1578,7 @@ static BOOL numberIsPositive(NSNumber *number){
         if (result) {
             *errorp = nil;
         } else {
-            NSDictionary *userInfo = [NSDictionary dictionaryWithObject:errorDescription forKey:NSLocalizedDescriptionKey];
+            NSDictionary *userInfo = [NSDictionary dictionaryWithObject:errorDescription forKey:NSUnderlyingErrorKey];
             *errorp = [NSError errorWithDomain:NSCocoaErrorDomain code:2048 userInfo:userInfo];
         }
     }
