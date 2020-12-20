@@ -908,7 +908,8 @@ IMP OBJCInitializeLookupAndCacheUniqueIdForObject(id object,SEL selector){
    if(msg_tracing)
     objc_logMsgSend(object,selector);
 
-   Class class=object->isa;
+   //Class class=object->isa;
+    Class class=object_getClass(object);
 
    if(!(class->info&CLASS_INFO_INITIALIZED)){
     Class checkInit=(class->info&CLASS_INFO_META)?(Class)object:class;

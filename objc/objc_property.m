@@ -13,11 +13,13 @@ const char *property_getName(objc_property_t property) {
    return property->name;
 }
 
+/*
 id objc_assign_ivar(id self,id value,unsigned int offset){
 //   NSCLog("objc_assign_ivar(%x,%s,%x,%s,%d)",self,(self!=nil)?self->isa->name:"nil",value,(value!=nil)?value->isa->name:"nil",offset);
    id *ivar=(id *)(((uint8_t *)self)+offset);
    return *ivar=value;
 }
+*/
 
 void objc_copyStruct(void *dest, const void *src, size_t size, BOOL atomic,BOOL hasStrong) {
    int i;

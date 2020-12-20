@@ -731,7 +731,7 @@ static inline void reverseString(unichar *buf, NSUInteger len) {
     return NSMakeRange(NSNotFound,0);
 
    if(range.location+range.length>[self length])
-    [NSException raise:NSRangeException format:@"-[%@ %s] range %d,%d beyond length %d",isa,sel_getName(_cmd),range.location,range.length,[self length]];
+    [NSException raise:NSRangeException format:@"-[%@ %s] range %d,%d beyond length %d",object_getClass(self),sel_getName(_cmd),range.location,range.length,[self length]];
 
    [self getCharacters:buffer];
    [pattern getCharacters:patbuffer];
@@ -983,7 +983,7 @@ U+2029 (Unicode paragraph separator), \r\n, in that order (also known as CRLF)
    unichar *unicode;
 
    if(NSMaxRange(range)>[self length])
-    [NSException raise:NSRangeException format:@"-[%@ %s] range %d,%d beyond length %d",isa,sel_getName(_cmd),range.location,range.length,[self length]];
+    [NSException raise:NSRangeException format:@"-[%@ %s] range %d,%d beyond length %d",object_getClass(self),sel_getName(_cmd),range.location,range.length,[self length]];
 
    if(range.length==0)
     return @"";
@@ -999,7 +999,7 @@ U+2029 (Unicode paragraph separator), \r\n, in that order (also known as CRLF)
    NSRange range={location,[self length]-location};
 
    if(location>[self length])
-    [NSException raise:NSRangeException format:@"-[%@ %s] index %d beyond length %d",isa,sel_getName(_cmd),location,[self length]];
+    [NSException raise:NSRangeException format:@"-[%@ %s] index %d beyond length %d",object_getClass(self),sel_getName(_cmd),location,[self length]];
 
    return [self substringWithRange:range];
 }
@@ -1011,7 +1011,7 @@ U+2029 (Unicode paragraph separator), \r\n, in that order (also known as CRLF)
     return [[self copy] autorelease];
 
    if(location>[self length])
-    [NSException raise:NSRangeException format:@"-[%@ %s] index %d beyond length %d",isa,sel_getName(_cmd),location,[self length]];
+    [NSException raise:NSRangeException format:@"-[%@ %s] index %d beyond length %d",object_getClass(self),sel_getName(_cmd),location,[self length]];
 
    return [self substringWithRange:range];
 }

@@ -12,7 +12,8 @@ Class object_getClass(id object) {
     if (object == nil) {
         return Nil;
     }
-   return object->isa;
+    return object_getClass(object);
+    //return object->isa ;
 }
 
 const char *object_getClassName(id object) {
@@ -42,9 +43,11 @@ Class object_setClass(id object,Class cls) {
    if(object==nil)
     return Nil;
     
-   Class result=object->isa;
-   
-   object->isa=cls;
+   // Class result=object->isa;
+    Class result = object_getClass(object);
+    
+    object_setClass(object, cls);
+   //object->isa=cls;
    
    return result;
 }

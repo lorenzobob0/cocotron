@@ -15,8 +15,11 @@
 
 static id objc_lookUpMetaClass(const char *name) {
    Class c=objc_lookUpClass(name);
-   if(c)
-      return c->isa;
+    if(c) {
+        return object_getClass(c);
+        //return c->isa;
+    }
+       
    return nil;
 }
 
@@ -28,7 +31,8 @@ BOOL _objc_checkObject(volatile id object)
    // objects begin at even addresses
    if((long)object%4!=0)
       return NO;
-   volatile Class isa=object->isa;
+   //volatile Class isa=object->isa;
+    volatile Class isa=object_getClass(object);
    
    if(isa<(Class)0x2000)
       return NO;

@@ -21,7 +21,8 @@ IMP objc_msg_lookup(id object,SEL selector) {
    if(object==nil)
     return (IMP)nil_message;
    else {
-    OBJCMethodCache      *cache=object->isa->cache;
+       OBJCMethodCache      *cache=object_getClass(object)->cache;
+    //OBJCMethodCache      *cache=object->isa->cache;
     uintptr_t              index=(uintptr_t)sel_getSelector(selector)&OBJCMethodCacheMask;
     OBJCMethodCacheEntry *checkEntry=((void *)cache->table)+index; 
 
